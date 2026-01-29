@@ -17,7 +17,12 @@ Route::prefix('v1')->group(function () {
 
         // Task Routes
         Route::apiResource('tasks', \App\Http\Controllers\Api\V1\TaskController::class);
+
+        // Task Reminder Routes (Nested)
+        Route::get('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'index']);
         Route::post('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'store']);
+        Route::put('tasks/{task}/reminders/{reminder}', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'update']);
+        Route::delete('tasks/{task}/reminders/{reminder}', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'destroy']);
     });
 });
 

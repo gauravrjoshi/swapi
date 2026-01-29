@@ -32,6 +32,29 @@ class TaskReminderService
     }
 
     /**
+     * Update a reminder.
+     *
+     * @param TaskReminder $reminder
+     * @param array $data
+     * @return TaskReminder
+     */
+    public function updateReminder(TaskReminder $reminder, array $data): TaskReminder
+    {
+        return $this->reminderRepository->update($reminder, $data);
+    }
+
+    /**
+     * Delete a reminder.
+     *
+     * @param TaskReminder $reminder
+     * @return bool
+     */
+    public function deleteReminder(TaskReminder $reminder): bool
+    {
+        return $this->reminderRepository->delete($reminder);
+    }
+
+    /**
      * Check all reminders and dispatch jobs if due.
      * Run this every minute.
      *

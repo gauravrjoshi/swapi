@@ -18,6 +18,22 @@ class TaskReminderRepository implements TaskReminderRepositoryInterface
         return TaskReminder::with('task')->get();
     }
 
+    public function find(int $id): ?TaskReminder
+    {
+        return TaskReminder::find($id);
+    }
+
+    public function update(TaskReminder $reminder, array $data): TaskReminder
+    {
+        $reminder->update($data);
+        return $reminder;
+    }
+
+    public function delete(TaskReminder $reminder): bool
+    {
+        return $reminder->delete();
+    }
+
     public function updateLastTriggered(TaskReminder $reminder): void
     {
         $reminder->update(['last_triggered_at' => now()]);
