@@ -13,6 +13,11 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *

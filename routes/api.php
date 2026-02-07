@@ -18,6 +18,10 @@ Route::prefix('v1')->group(function () {
         // Task Routes
         Route::apiResource('tasks', \App\Http\Controllers\Api\V1\TaskController::class);
 
+        // Transaction Routes
+        Route::post('transactions/import', [\App\Http\Controllers\Api\V1\TransactionController::class, 'import']);
+        Route::apiResource('transactions', \App\Http\Controllers\Api\V1\TransactionController::class);
+
         // Task Reminder Routes (Nested)
         Route::get('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'index']);
         Route::post('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'store']);
