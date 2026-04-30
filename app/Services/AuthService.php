@@ -6,6 +6,7 @@ use App\Interfaces\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
@@ -43,15 +44,22 @@ class AuthService
      * @return array
      * @throws ValidationException
      */
-    public function login(array $credentials): array
+    public function login(array $data): array
     {
-        if (!Auth::attempt($credentials)) {
+        $fcmToken = $data['fcm_token'] ?? null;
+        unset($data['fcm_token']);
+
+        if (!Auth::attempt($data)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
         }
 
-        $user = User::where('email', $credentials['email'])->first();
+        $user = User::where('email', $data['email'])->first();
+
+        if ($fcmToken) {
+            $user->update(['fcm_token' => $fcmToken]);
+        }
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return [

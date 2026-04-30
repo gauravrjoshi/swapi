@@ -24,6 +24,7 @@ class LoginRequest extends BaseApiRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'fcm_token' => ['nullable', 'string'],
         ];
     }
 }

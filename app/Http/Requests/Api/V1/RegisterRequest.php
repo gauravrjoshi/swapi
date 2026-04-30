@@ -25,6 +25,7 @@ class RegisterRequest extends BaseApiRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'fcm_token' => ['nullable', 'string'],
         ];
     }
 }

@@ -27,6 +27,10 @@ Route::prefix('v1')->group(function () {
         Route::post('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'store']);
         Route::put('tasks/{task}/reminders/{reminder}', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'update']);
         Route::delete('tasks/{task}/reminders/{reminder}', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'destroy']);
+
+        // Notification Routes
+        Route::post('fcm-token', [\App\Http\Controllers\Api\V1\NotificationController::class, 'updateFcmToken']);
+        Route::post('notifications/send', [\App\Http\Controllers\Api\V1\NotificationController::class, 'sendNotification']);
     });
 });
 
