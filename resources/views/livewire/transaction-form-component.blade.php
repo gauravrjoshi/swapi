@@ -39,7 +39,7 @@ new class extends Component {
         } else {
             $this->date = now()->format('Y-m-d');
             // Default to first user account if available
-            $this->account_id = Account::where('user_id', Auth::id())->first()?->id;
+            $this->account_id = Account::first()?->id;
         }
     }
 
@@ -62,23 +62,17 @@ new class extends Component {
         if ($this->type === 'transfer') {
             $rules['from_account_id'] = [
                 'required',
-                Rule::exists('accounts', 'id')->where(function ($query) {
-                    $query->where('user_id', Auth::id());
-                }),
+                Rule::exists('accounts', 'id'),
             ];
             $rules['to_account_id'] = [
                 'required',
                 'different:from_account_id',
-                Rule::exists('accounts', 'id')->where(function ($query) {
-                    $query->where('user_id', Auth::id());
-                }),
+                Rule::exists('accounts', 'id'),
             ];
         } else {
             $rules['account_id'] = [
                 'required',
-                Rule::exists('accounts', 'id')->where(function ($query) {
-                    $query->where('user_id', Auth::id());
-                }),
+                Rule::exists('accounts', 'id'),
             ];
         }
 
@@ -87,7 +81,7 @@ new class extends Component {
         $validated['time'] = now()->format('H:i:s'); // For compatibility with existing schema
 
         if ($this->transactionId) {
-            $transaction = Transaction::where('user_id', Auth::id())->findOrFail($this->transactionId);
+            $transaction = Transaction::findOrFail($this->transactionId);
             $service->updateTransaction($transaction, $validated);
             session()->flash('message', 'Transaction updated successfully.');
         } else {
@@ -100,14 +94,14 @@ new class extends Component {
 
     public function with()
     {
-        $tagQuery = Tag::where('user_id', Auth::id())->orderBy('name');
+        $tagQuery = Tag::orderBy('name');
 
         if ($this->tagSearch) {
             $tagQuery->where('name', 'like', '%' . trim($this->tagSearch) . '%');
         }
 
         return [
-            'accounts' => Account::where('user_id', Auth::id())->get(),
+            'accounts' => Account::all(),
             'tags' => $tagQuery->get(),
         ];
     }

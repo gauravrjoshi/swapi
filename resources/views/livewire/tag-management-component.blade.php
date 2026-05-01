@@ -23,9 +23,7 @@ new class extends Component
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('tags', 'name')->where(function ($query) {
-                    $query->where('user_id', Auth::id());
-                }),
+                Rule::unique('tags', 'name'),
             ],
             'color' => 'required|string|max:7',
         ]);
@@ -43,7 +41,7 @@ new class extends Component
 
     public function editTag($id)
     {
-        $tag = Tag::where('user_id', Auth::id())->findOrFail($id);
+        $tag = Tag::findOrFail($id);
 
         $this->editingTagId = $id;
         $this->editName = $tag->name;
@@ -52,16 +50,14 @@ new class extends Component
 
     public function updateTag()
     {
-        $tag = Tag::where('user_id', Auth::id())->findOrFail($this->editingTagId);
+        $tag = Tag::findOrFail($this->editingTagId);
 
         $this->validate([
             'editName' => [
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('tags', 'name')->ignore($this->editingTagId)->where(function ($query) {
-                    $query->where('user_id', Auth::id());
-                }),
+                Rule::unique('tags', 'name')->ignore($this->editingTagId),
             ],
             'editColor' => 'required|string|max:7',
         ]);
@@ -77,7 +73,7 @@ new class extends Component
 
     public function deleteTag($id)
     {
-        $tag = Tag::where('user_id', Auth::id())->findOrFail($id);
+        $tag = Tag::findOrFail($id);
         $tag->delete();
         session()->flash('tag-message', 'Tag deleted successfully.');
     }
@@ -89,7 +85,7 @@ new class extends Component
 
     public function with()
     {
-        $query = Tag::where('user_id', Auth::id());
+        $query = Tag::query();
 
         if ($this->search) {
             $query->where('name', 'like', '%' . trim($this->search) . '%');

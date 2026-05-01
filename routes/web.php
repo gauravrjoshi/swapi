@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 Route::get('/', function () {
     return redirect('/dashboard');
@@ -11,12 +12,55 @@ Route::middleware(['auth'])->group(function () {
         return view('dashboard_page');
     });
 
+    Route::get('/transactions', function () {
+        return view('all_transactions_page');
+    });
+
+    Route::get('/transactions/download', function (Illuminate\Http\Request $request) {
+        $query = App\Models\Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])->latest();
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('description', 'like', '%' . $request->search . '%')
+                  ->orWhere('transaction_details', 'like', '%' . $request->search . '%')
+                  ->orWhere('tag', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->type) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->user) {
+            $query->where('user_id', $request->user);
+        }
+
+        if ($request->from) {
+            $query->whereDate('date', '>=', $request->from);
+        }
+
+        if ($request->to) {
+            $query->whereDate('date', '<=', $request->to);
+        }
+
+        $transactions = $query->get();
+        $filters = [
+            'search' => $request->search,
+            'type' => $request->type,
+            'user' => $request->user,
+            'from' => $request->from,
+            'to' => $request->to,
+        ];
+
+        $pdf = Pdf::loadView('pdf.transactions', compact('transactions', 'filters'));
+        return $pdf->download('transactions_report_' . now()->format('Ymd_His') . '.pdf');
+    })->name('transactions.download');
+
     Route::get('/transactions/new', function () {
         return view('transaction_page');
     });
 
     Route::get('/transactions/{transaction}/edit', function (App\Models\Transaction $transaction) {
-        if ($transaction->user_id !== Auth::id()) abort(403);
         return view('transaction_page', ['transaction' => $transaction]);
     });
 

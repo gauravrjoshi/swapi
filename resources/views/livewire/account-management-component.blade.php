@@ -38,7 +38,7 @@ new class extends Component
 
     public function editAccount($id)
     {
-        $account = Account::where('user_id', Auth::id())->findOrFail($id);
+        $account = Account::findOrFail($id);
 
         $this->editingAccountId = $id;
         $this->editName = $account->name;
@@ -48,7 +48,7 @@ new class extends Component
 
     public function updateAccount()
     {
-        $account = Account::where('user_id', Auth::id())->findOrFail($this->editingAccountId);
+        $account = Account::findOrFail($this->editingAccountId);
 
         $validated = $this->validate([
             'editName' => 'required|string|max:255',
@@ -74,7 +74,7 @@ new class extends Component
     public function deleteAccount()
     {
         try {
-            $account = Account::where('user_id', Auth::id())->findOrFail($this->confirmingDeletionId);
+            $account = Account::findOrFail($this->confirmingDeletionId);
 
             $account->delete();
             $this->confirmingDeletionId = null;
@@ -97,7 +97,7 @@ new class extends Component
     public function with()
     {
         return [
-            'accounts' => Account::where('user_id', Auth::id())->get(),
+            'accounts' => Account::with('user')->get(),
         ];
     }
 };
@@ -194,6 +194,7 @@ new class extends Component
                                             @endif
                                         </div>
                                         <p class="text-sm font-black text-indigo-600">₹{{ number_format($account->balance, 2) }}</p>
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">By {{ $account->user?->name ?? 'System' }}</p>
                                     </div>
                                 </div>
                                 <div class="flex gap-2">

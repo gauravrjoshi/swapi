@@ -21,7 +21,7 @@ new class extends Component
 
     public function deleteTransaction(App\Services\TransactionService $service)
     {
-        $transaction = Transaction::where('user_id', Auth::id())->findOrFail($this->confirmingTransactionDeletionId);
+        $transaction = Transaction::findOrFail($this->confirmingTransactionDeletionId);
         $service->deleteTransaction($transaction);
         
         $this->confirmingTransactionDeletionId = null;
@@ -30,11 +30,10 @@ new class extends Component
 
     public function with()
     {
-        $userId = Auth::id();
-        $accounts = Account::where('user_id', $userId)->get();
+        $accounts = Account::all();
         
-        $credits = Transaction::where('user_id', $userId)->where('type', 'credit')->sum('amount');
-        $debits = Transaction::where('user_id', $userId)->where('type', 'debit')->sum('amount');
+        $credits = Transaction::where('type', 'credit')->sum('amount');
+        $debits = Transaction::where('type', 'debit')->sum('amount');
         $net = $credits - $debits;
         
         // Total savings = sum of balances of accounts marked as savings
@@ -44,20 +43,35 @@ new class extends Component
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
         
-        $thisMonthCredits = Transaction::where('user_id', $userId)
-            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+        $thisMonthCredits = Transaction::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where('type', 'credit')->sum('amount');
-        $thisMonthDebits = Transaction::where('user_id', $userId)
-            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+        $thisMonthDebits = Transaction::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where('type', 'debit')->sum('amount');
         $monthlyChange = $thisMonthCredits - $thisMonthDebits;
 
         // Monthly savings = transfers tagged as 'savings'
-        $monthlySavings = Transaction::where('user_id', $userId)
-            ->where('type', 'transfer')
+        $monthlySavings = Transaction::where('type', 'transfer')
             ->where('tag', 'like', 'savings')
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('amount');
+
+        // Monthly savings chart data (last 6 months)
+        $chartData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $monthStart = $month->copy()->startOfMonth();
+            $monthEnd = $month->copy()->endOfMonth();
+            
+            $mCredits = Transaction::whereBetween('date', [$monthStart, $monthEnd])
+                ->where('type', 'credit')->sum('amount');
+            $mDebits = Transaction::whereBetween('date', [$monthStart, $monthEnd])
+                ->where('type', 'debit')->sum('amount');
+            
+            $chartData[] = [
+                'label' => $month->format('M Y'),
+                'savings' => (float) ($mCredits - $mDebits),
+            ];
+        }
 
         return [
             'accounts' => $accounts,
@@ -67,11 +81,7 @@ new class extends Component
             'totalSavings' => $totalSavings,
             'monthlyChange' => $monthlyChange,
             'monthlySavings' => $monthlySavings,
-            'recentTransactions' => Transaction::where('user_id', $userId)
-                ->with(['mainAccount', 'fromAccount', 'toAccount'])
-                ->latest()
-                ->take(10)
-                ->get(),
+            'chartData' => $chartData,
         ];
     }
 };
@@ -144,99 +154,98 @@ new class extends Component
             </div>
         </div>
 
-        <!-- Recent Transactions -->
+        <!-- Monthly Savings Chart -->
         <div class="lg:col-span-2 space-y-4">
-            <h2 class="text-xl font-bold text-slate-900 px-2">Recent Transactions</h2>
-            <div class="space-y-3">
-                @foreach($recentTransactions as $tx)
-                    <div class="bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition-all flex items-center justify-between group">
-                        <div class="flex items-center gap-4 flex-1">
-                            <!-- Type Icon -->
-                            <div class="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0
-                                {{ $tx->type === 'credit' ? 'bg-emerald-50 text-emerald-600' : '' }}
-                                {{ $tx->type === 'debit' ? 'bg-rose-50 text-rose-600' : '' }}
-                                {{ $tx->type === 'transfer' ? 'bg-indigo-50 text-indigo-600' : '' }}">
-                                @if($tx->type === 'credit')
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
-                                @elseif($tx->type === 'debit')
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
-                                    </svg>
-                                @else
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                    </svg>
-                                @endif
-                            </div>
-
-                            <div class="min-w-0">
-                                <h4 class="text-sm font-bold text-slate-900 truncate">
-                                    {{ $tx->description ?? ($tx->transaction_details ?? 'Unspecified') }}
-                                </h4>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-xs font-medium text-slate-500 flex items-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                        </svg>
-                                        @if($tx->type === 'transfer')
-                                            {{ $tx->fromAccount?->name }} &rarr; {{ $tx->toAccount?->name }}
-                                        @else
-                                            {{ $tx->mainAccount?->name ?? 'Default' }}
-                                        @endif
-                                    </span>
-                                    @if($tx->tag)
-                                        <span class="h-1 w-1 rounded-full bg-slate-300"></span>
-                                        <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                                            {{ $tx->tag }}
-                                        </span>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-6">
-                            <div class="text-right">
-                                <div class="text-sm font-black 
-                                    {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
-                                    {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
-                                    {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
-                                    {{ $tx->type === 'debit' ? '-' : '' }}₹{{ number_format($tx->amount, 2) }}
-                                </div>
-                                <div class="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">
-                                    {{ $tx->date->format('d M, Y') }}
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm">
-                                <a href="/transactions/{{ $tx->id }}/edit" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all" title="Edit">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                </a>
-                                <button wire:click="confirmTransactionDelete({{ $tx->id }})" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all" title="Delete">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-
-                @if($recentTransactions->isEmpty())
-                    <div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
-                        <div class="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        </div>
-                        <p class="text-slate-400 font-medium">No transactions found</p>
-                    </div>
-                @endif
+            <h2 class="text-xl font-bold text-slate-900 px-2">Savings Growth</h2>
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 min-h-[250px] flex flex-col">
+                <div class="flex-1 relative">
+                    <canvas id="savingsChart"></canvas>
+                </div>
             </div>
         </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            document.addEventListener('livewire:navigated', () => {
+                initChart();
+            });
+
+            document.addEventListener('DOMContentLoaded', () => {
+                initChart();
+            });
+
+            function initChart() {
+                const ctx = document.getElementById('savingsChart');
+                if (!ctx) return;
+
+                const data = @json($chartData);
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => d.label),
+                        datasets: [{
+                            label: 'Net Savings (₹)',
+                            data: data.map(d => d.savings),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderWidth: 4,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#6366f1',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 13 },
+                                padding: 12,
+                                cornerRadius: 12,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                display: false,
+                                grid: { display: false }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    font: { weight: 'bold', size: 10 },
+                                    color: '#94a3b8'
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 2000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+            }
+        </script>
     </div>
 
     <!-- Transaction Deletion Modal -->

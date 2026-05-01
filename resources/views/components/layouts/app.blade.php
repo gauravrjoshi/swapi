@@ -23,6 +23,7 @@
                         </a>
                         <div class="hidden sm:flex sm:space-x-4">
                             <a href="/dashboard" class="px-3 py-2 rounded-lg text-sm font-bold {{ request()->is('dashboard') ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700' }}">Dashboard</a>
+                            <a href="/transactions" class="px-3 py-2 rounded-lg text-sm font-bold {{ request()->is('transactions') ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700' }}">Transactions</a>
                             <a href="/accounts" class="px-3 py-2 rounded-lg text-sm font-bold {{ request()->is('accounts') ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700' }}">Accounts</a>
                             <a href="/transactions/new" class="px-3 py-2 rounded-lg text-sm font-bold {{ request()->is('transactions/new') ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700' }}">New Entry</a>
                             <a href="/tags" class="px-3 py-2 rounded-lg text-sm font-bold {{ request()->is('tags') ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700' }}">Tags</a>
