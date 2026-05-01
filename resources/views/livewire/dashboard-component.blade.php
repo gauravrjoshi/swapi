@@ -1,0 +1,268 @@
+<?php
+
+use Livewire\Volt\Component;
+use App\Models\Account;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\Auth;
+
+new class extends Component
+{
+    public $confirmingTransactionDeletionId = null;
+
+    public function confirmTransactionDelete($id)
+    {
+        $this->confirmingTransactionDeletionId = $id;
+    }
+
+    public function cancelTransactionDelete()
+    {
+        $this->confirmingTransactionDeletionId = null;
+    }
+
+    public function deleteTransaction(App\Services\TransactionService $service)
+    {
+        $transaction = Transaction::where('user_id', Auth::id())->findOrFail($this->confirmingTransactionDeletionId);
+        $service->deleteTransaction($transaction);
+        
+        $this->confirmingTransactionDeletionId = null;
+        session()->flash('message', 'Transaction deleted and balances updated.');
+    }
+
+    public function with()
+    {
+        $userId = Auth::id();
+        $accounts = Account::where('user_id', $userId)->get();
+        
+        $credits = Transaction::where('user_id', $userId)->where('type', 'credit')->sum('amount');
+        $debits = Transaction::where('user_id', $userId)->where('type', 'debit')->sum('amount');
+        $net = $credits - $debits;
+        
+        // Total savings = sum of balances of accounts marked as savings
+        $totalSavings = $accounts->where('is_savings', true)->sum('balance');
+
+        // This month's net change (credits - debits)
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+        
+        $thisMonthCredits = Transaction::where('user_id', $userId)
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->where('type', 'credit')->sum('amount');
+        $thisMonthDebits = Transaction::where('user_id', $userId)
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->where('type', 'debit')->sum('amount');
+        $monthlyChange = $thisMonthCredits - $thisMonthDebits;
+
+        // Monthly savings = transfers tagged as 'savings'
+        $monthlySavings = Transaction::where('user_id', $userId)
+            ->where('type', 'transfer')
+            ->where('tag', 'like', 'savings')
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+
+        return [
+            'accounts' => $accounts,
+            'totalCredits' => $credits,
+            'totalDebits' => $debits,
+            'netProfit' => $net,
+            'totalSavings' => $totalSavings,
+            'monthlyChange' => $monthlyChange,
+            'monthlySavings' => $monthlySavings,
+            'recentTransactions' => Transaction::where('user_id', $userId)
+                ->with(['mainAccount', 'fromAccount', 'toAccount'])
+                ->latest()
+                ->take(10)
+                ->get(),
+        ];
+    }
+};
+?>
+
+<div class="p-6 w-full mx-auto space-y-6 bg-slate-50 min-h-screen">
+    <header class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Financial Overview</h1>
+            <p class="text-slate-500 mt-1">Welcome back, {{ Auth::user()->name }}</p>
+        </div>
+        <div class="flex gap-4">
+            <a href="/transactions/new" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md shadow-indigo-100 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                New Entry
+            </a>
+        </div>
+    </header>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
+            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Credits</p>
+            <p class="text-2xl font-bold text-slate-900 mt-2">₹{{ number_format($totalCredits, 2) }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-rose-500">
+            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Debits</p>
+            <p class="text-2xl font-bold text-slate-900 mt-2">₹{{ number_format($totalDebits, 2) }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
+            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Net P/L</p>
+            <p class="text-2xl font-bold text-slate-900 mt-2 {{ $netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
+                ₹{{ number_format($netProfit, 2) }}
+            </p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500">
+            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Savings Overview</p>
+            <div class="flex flex-col gap-1 mt-2">
+                <p class="text-2xl font-bold text-slate-900">₹{{ number_format($totalSavings, 2) }}</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">In Savings Accounts</p>
+            </div>
+            <div class="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50">
+                <div class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
+                <span class="text-xs font-bold text-slate-600">₹{{ number_format($monthlySavings, 2) }} saved this month</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Accounts Section -->
+        <div class="lg:col-span-1 space-y-4">
+            <h2 class="text-xl font-bold text-slate-900 px-2">Your Accounts</h2>
+            <div class="space-y-3">
+                @forelse($accounts as $account)
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-colors">
+                        <div>
+                            <p class="font-bold text-slate-800">{{ $account->name }}</p>
+                            <p class="text-xs text-slate-400 uppercase tracking-widest mt-1">Balance</p>
+                        </div>
+                        <p class="text-lg font-black text-slate-900">₹{{ number_format($account->balance, 2) }}</p>
+                    </div>
+                @empty
+                    <div class="bg-slate-100 p-8 rounded-2xl border border-dashed border-slate-300 text-center">
+                        <p class="text-slate-500">No accounts found.</p>
+                        <a href="/accounts/new" class="text-indigo-600 font-bold text-sm mt-2 block">Create first account</a>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="lg:col-span-2 space-y-4">
+            <h2 class="text-xl font-bold text-slate-900 px-2">Recent Transactions</h2>
+            <div class="space-y-3">
+                @foreach($recentTransactions as $tx)
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition-all flex items-center justify-between group">
+                        <div class="flex items-center gap-4 flex-1">
+                            <!-- Type Icon -->
+                            <div class="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0
+                                {{ $tx->type === 'credit' ? 'bg-emerald-50 text-emerald-600' : '' }}
+                                {{ $tx->type === 'debit' ? 'bg-rose-50 text-rose-600' : '' }}
+                                {{ $tx->type === 'transfer' ? 'bg-indigo-50 text-indigo-600' : '' }}">
+                                @if($tx->type === 'credit')
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                @elseif($tx->type === 'debit')
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                    </svg>
+                                @else
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                @endif
+                            </div>
+
+                            <div class="min-w-0">
+                                <h4 class="text-sm font-bold text-slate-900 truncate">
+                                    {{ $tx->description ?? ($tx->transaction_details ?? 'Unspecified') }}
+                                </h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-xs font-medium text-slate-500 flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                        </svg>
+                                        @if($tx->type === 'transfer')
+                                            {{ $tx->fromAccount?->name }} &rarr; {{ $tx->toAccount?->name }}
+                                        @else
+                                            {{ $tx->mainAccount?->name ?? 'Default' }}
+                                        @endif
+                                    </span>
+                                    @if($tx->tag)
+                                        <span class="h-1 w-1 rounded-full bg-slate-300"></span>
+                                        <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                            {{ $tx->tag }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-6">
+                            <div class="text-right">
+                                <div class="text-sm font-black 
+                                    {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
+                                    {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
+                                    {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
+                                    {{ $tx->type === 'debit' ? '-' : '' }}₹{{ number_format($tx->amount, 2) }}
+                                </div>
+                                <div class="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">
+                                    {{ $tx->date->format('d M, Y') }}
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm">
+                                <a href="/transactions/{{ $tx->id }}/edit" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all" title="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </a>
+                                <button wire:click="confirmTransactionDelete({{ $tx->id }})" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+                @if($recentTransactions->isEmpty())
+                    <div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
+                        <div class="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <p class="text-slate-400 font-medium">No transactions found</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Deletion Modal -->
+    @if($confirmingTransactionDeletionId)
+        @teleport('body')
+            <div class="fixed inset-0 z-[99999] flex items-center justify-center p-4" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-center; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);">
+                <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 space-y-6" style="background-color: white; border-radius: 1.5rem; width: 100%; max-width: 24rem; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                    <div class="h-20 w-20 flex items-center justify-center mx-auto rounded-full" style="background-color: #fff1f2; height: 5rem; width: 5rem; margin-left: auto; margin-right: auto; display: flex; align-items: center; justify-center; border-radius: 9999px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" style="color: #e11d48; height: 2.5rem; width: 2.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div class="text-center" style="text-align: center;">
+                        <h3 class="text-2xl font-black text-slate-900" style="font-size: 1.5rem; font-weight: 900; color: #0f172a;">Delete Transaction?</h3>
+                        <p class="text-slate-500 mt-2 leading-relaxed" style="color: #64748b; margin-top: 0.5rem; line-height: 1.625;">This will permanently remove the record and revert the balance changes in your accounts.</p>
+                    </div>
+                    <div class="flex gap-3 pt-2" style="display: flex; gap: 0.75rem; padding-top: 0.5rem;">
+                        <button wire:click="cancelTransactionDelete" class="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all" style="flex: 1; padding-top: 0.875rem; padding-bottom: 0.875rem; background-color: #f1f5f9; color: #334155; border-radius: 1rem; font-weight: 700; border: none; cursor: pointer;">
+                            Cancel
+                        </button>
+                        <button wire:click="deleteTransaction" class="flex-1 py-3.5 text-white rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg" style="flex: 1; padding-top: 0.875rem; padding-bottom: 0.875rem; background-color: #e11d48; color: white; border-radius: 1rem; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(225, 29, 72, 0.3);">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endteleport
+    @endif
+</div>

@@ -28,7 +28,24 @@ class User extends Authenticatable
         'email',
         'password',
         'fcm_token',
+        'is_admin',
+        'profile_photo_path',
     ];
+
+    public function isAdmin(): bool
+    {
+        return (bool) $this->is_admin;
+    }
+
+    public function accounts()
+    {
+        return $this->hasMany(Account::class);
+    }
+
+    public function tags()
+    {
+        return $this->hasMany(Tag::class);
+    }
     // protected $guarded = [];
 
     /**

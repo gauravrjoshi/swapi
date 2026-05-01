@@ -30,6 +30,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Fix Livewire update route for subdirectory deployments
+        if (str_contains(config('app.url'), '/')) {
+            $path = parse_url(config('app.url'), PHP_URL_PATH);
+            if ($path && $path !== '/') {
+                \Livewire\Livewire::setUpdateRoute(function ($handle) use ($path) {
+                    return \Illuminate\Support\Facades\Route::post($path . '/livewire/update', $handle);
+                });
+            }
+        }
     }
 }
