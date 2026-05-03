@@ -3,18 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use Kreait\Firebase\Contract\Messaging;
-use Kreait\Firebase\Messaging\CloudMessage;
-use Kreait\Firebase\Messaging\Notification;
 
 class NotificationController extends Controller
 {
-    protected $messaging;
+    protected $notificationService;
 
-    public function __construct(Messaging $messaging)
+    public function __construct(NotificationService $notificationService)
     {
-        $this->messaging = $messaging;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -45,20 +43,16 @@ class NotificationController extends Controller
 
         $user = \App\Models\User::find($request->user_id);
 
-        if (!$user->fcm_token) {
-            return response()->json(['message' => 'User does not have an FCM token.'], 404);
-        }
+        $success = $this->notificationService->sendToUser(
+            $user,
+            $request->title,
+            $request->body
+        );
 
-        $notification = Notification::create($request->title, $request->body);
-
-        $message = CloudMessage::withTarget('token', $user->fcm_token)
-            ->withNotification($notification);
-
-        try {
-            $this->messaging->send($message);
+        if ($success) {
             return response()->json(['message' => 'Notification sent successfully.']);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to send notification.', 'error' => $e->getMessage()], 500);
+        } else {
+            return response()->json(['message' => 'Failed to send notification or user has no token.'], 500);
         }
     }
 }

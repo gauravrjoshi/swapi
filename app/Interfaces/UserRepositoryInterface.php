@@ -29,4 +29,6 @@ interface UserRepositoryInterface
      * @return User|null
      */
     public function findById(int $id): ?User;
+
+    public function getAll(): \Illuminate\Database\Eloquent\Collection;
 }

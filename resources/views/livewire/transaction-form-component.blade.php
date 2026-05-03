@@ -77,8 +77,6 @@ new class extends Component {
         }
 
         $validated = $this->validate($rules);
-        $validated['user_id'] = Auth::id();
-        $validated['time'] = now()->format('H:i:s'); // For compatibility with existing schema
 
         if ($this->transactionId) {
             $transaction = Transaction::findOrFail($this->transactionId);

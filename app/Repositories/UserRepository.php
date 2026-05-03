@@ -39,4 +39,14 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::find($id);
     }
+
+    /**
+     * Get all users.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getAll(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::all();
+    }
 }

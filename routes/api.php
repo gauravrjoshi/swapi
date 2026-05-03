@@ -14,6 +14,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('me', [UserController::class, 'me']);
+        Route::get('dashboard', [\App\Http\Controllers\Api\V1\DashboardController::class, 'index']);
 
         // Task Routes
         Route::apiResource('tasks', \App\Http\Controllers\Api\V1\TaskController::class);
@@ -21,6 +22,12 @@ Route::prefix('v1')->group(function () {
         // Transaction Routes
         Route::post('transactions/import', [\App\Http\Controllers\Api\V1\TransactionController::class, 'import']);
         Route::apiResource('transactions', \App\Http\Controllers\Api\V1\TransactionController::class);
+
+        // Tag Routes
+        Route::apiResource('tags', \App\Http\Controllers\Api\V1\TagController::class);
+
+        // Account Routes
+        Route::apiResource('accounts', \App\Http\Controllers\Api\V1\AccountController::class);
 
         // Task Reminder Routes (Nested)
         Route::get('tasks/{task}/reminders', [\App\Http\Controllers\Api\V1\TaskReminderController::class, 'index']);

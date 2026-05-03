@@ -24,4 +24,10 @@ class UserService
     {
         return $this->userRepository->findById($id);
     }
+
+    // Get all users
+    public function getAllUsers()
+    {
+        return $this->userRepository->getAll();
+    }
 }
