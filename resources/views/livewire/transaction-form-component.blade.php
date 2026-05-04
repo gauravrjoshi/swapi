@@ -23,6 +23,11 @@ new class extends Component {
     public function mount($transaction = null)
     {
         if ($transaction) {
+            // Check if user can manage this transaction
+            if (!$transaction->canBeManagedBy(Auth::id())) {
+                abort(403, 'You do not have permission to edit this transaction.');
+            }
+
             $this->transactionId = $transaction->id;
             $this->type = $transaction->type;
             $this->amount = $transaction->amount;
@@ -39,7 +44,7 @@ new class extends Component {
         } else {
             $this->date = now()->format('Y-m-d');
             // Default to first user account if available
-            $this->account_id = Account::first()?->id;
+            $this->account_id = Account::where('user_id', Auth::id())->first()?->id;
         }
     }
 
@@ -78,6 +83,24 @@ new class extends Component {
 
         $validated = $this->validate($rules);
 
+        // Ownership Verification
+        if ($this->type === 'transfer') {
+            $fromAccount = Account::find($this->from_account_id);
+            $toAccount = Account::find($this->to_account_id);
+            if ($fromAccount->user_id !== Auth::id() && $toAccount->user_id !== Auth::id()) {
+                $this->addError('from_account_id', 'You must own at least one of the accounts in a transfer.');
+                return;
+            }
+        } else {
+            $account = Account::find($this->account_id);
+            if ($account->user_id !== Auth::id()) {
+                $this->addError('account_id', 'You can only add transactions to your own accounts.');
+                return;
+            }
+        }
+
+        $validated = $this->validate($rules);
+
         if ($this->transactionId) {
             $transaction = Transaction::findOrFail($this->transactionId);
             $service->updateTransaction($transaction, $validated);
@@ -99,7 +122,7 @@ new class extends Component {
         }
 
         return [
-            'accounts' => Account::all(),
+            'accounts' => Account::where('user_id', Auth::id())->orderBy('name')->get(),
             'tags' => $tagQuery->get(),
         ];
     }
@@ -195,7 +218,7 @@ new class extends Component {
             <div class="grid grid-cols-12 gap-8 items-end">
                 <!-- Amount -->
                 <div class="col-span-12 md:col-span-2 space-y-2.5">
-                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Amount</label>
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Amount <span class="text-rose-500">*</span></label>
                     <div class="group relative">
                         <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg transition-colors"
                             :class="{
@@ -203,7 +226,7 @@ new class extends Component {
                                 'text-emerald-400': currentType === 'credit',
                                 'text-indigo-400': currentType === 'transfer'
                             }">₹</span>
-                        <input type="number" step="0.01" wire:model="amount"
+                        <input type="number" step="0.01" wire:model="amount" required
                             class="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 transition-all font-black text-lg shadow-inner"
                             :class="{
                                 'text-rose-600 focus:ring-rose-50 focus:border-rose-500': currentType === 'debit',
@@ -300,9 +323,9 @@ new class extends Component {
 
                 <!-- Date -->
                 <div class="col-span-12 md:col-span-2 space-y-2.5">
-                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Date</label>
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Date <span class="text-rose-500">*</span></label>
                     <div class="relative">
-                        <input type="date" wire:model="date"
+                        <input type="date" wire:model="date" required
                             class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-black text-sm shadow-inner">
                     </div>
                     @error('date') <span class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror
@@ -311,8 +334,8 @@ new class extends Component {
                 @if($type === 'transfer')
                     <!-- From Account -->
                     <div class="col-span-12 md:col-span-2 space-y-2.5">
-                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Source</label>
-                        <select wire:model="from_account_id"
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Source <span class="text-rose-500">*</span></label>
+                        <select wire:model="from_account_id" required
                             class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-inner appearance-none">
                             <option value="">Choose source</option>
                             @foreach($accounts as $account)
@@ -326,8 +349,8 @@ new class extends Component {
 
                     <!-- To Account -->
                     <div class="col-span-12 md:col-span-3 space-y-2.5">
-                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Destination</label>
-                        <select wire:model="to_account_id"
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Destination <span class="text-rose-500">*</span></label>
+                        <select wire:model="to_account_id" required
                             class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-inner appearance-none">
                             <option value="">Choose destination</option>
                             @foreach($accounts as $account)
@@ -341,9 +364,9 @@ new class extends Component {
                 @else
                     <!-- Single Account -->
                     <div class="col-span-12 md:col-span-5 space-y-2.5">
-                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Account</label>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Account <span class="text-rose-500">*</span></label>
                         <div class="relative">
-                            <select wire:model="account_id"
+                            <select wire:model="account_id" required
                                 class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-inner appearance-none">
                                 <option value="">Select an account</option>
                                 @foreach($accounts as $account)

@@ -52,4 +52,24 @@ class Transaction extends Model
     {
         return $this->belongsTo(Account::class, 'to_account_id');
     }
+
+    /**
+     * Check if a user can manage (edit/delete) this transaction.
+     * A user can only manage transactions involving accounts they own.
+     */
+    public function canBeManagedBy($user): bool
+    {
+        if (!$user) return false;
+        $userId = is_object($user) ? $user->id : $user;
+
+        if ($this->type === 'transfer') {
+            // For transfers, if you own either account, you can manage it? 
+            // The prompt says "latika can only add transactions entry related to it"
+            // So if she owns the source or destination, she should be able to manage it.
+            return ($this->fromAccount && $this->fromAccount->user_id == $userId) || 
+                   ($this->toAccount && $this->toAccount->user_id == $userId);
+        }
+
+        return $this->mainAccount && $this->mainAccount->user_id == $userId;
+    }
 }

@@ -14,7 +14,28 @@ class Account extends Model
         'balance',
         'is_savings',
         'user_id',
+        'bank_name',
+        'account_holder_name',
+        'account_number',
+        'ifsc_code',
+        'branch_address',
+        'account_type',
     ];
+
+    public function isGeneral(): bool
+    {
+        return $this->account_type === 'general';
+    }
+
+    public function isSavings(): bool
+    {
+        return $this->account_type === 'savings';
+    }
+
+    public function isLiability(): bool
+    {
+        return $this->account_type === 'liability';
+    }
 
     public function user()
     {

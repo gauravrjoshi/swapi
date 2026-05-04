@@ -80,6 +80,27 @@ Route::middleware(['auth'])->group(function () {
         if (!auth()->user()->is_admin) abort(403);
         return view('user_management_page');
     });
+
+    Route::get('/admin/impersonate/{user}', function (App\Models\User $user) {
+        if (!auth()->user()->is_admin) abort(403);
+        
+        session(['impersonator_id' => auth()->id()]);
+        auth()->login($user);
+        
+        return redirect('/dashboard')->with('success', "Now impersonating {$user->name}");
+    })->name('impersonate');
+
+    Route::get('/admin/stop-impersonating', function () {
+        if (!session()->has('impersonator_id')) return redirect('/');
+        
+        $adminId = session('impersonator_id');
+        session()->forget('impersonator_id');
+        
+        $admin = App\Models\User::findOrFail($adminId);
+        auth()->login($admin);
+        
+        return redirect('/admin/users')->with('success', 'Welcome back, ' . $admin->name);
+    })->name('stop-impersonating');
 });
 
 Route::get('/login', function () {

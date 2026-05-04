@@ -57,29 +57,36 @@ new class extends Component {
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
             <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Credits</p>
-            <p class="text-2xl font-bold text-slate-900 mt-2">₹{{ number_format($totalCredits, 2) }}</p>
+            <p class="text-2xl font-bold text-slate-900 mt-2" x-text="showBalances ? '₹{{ number_format($totalCredits, 2) }}' : '₹ ••••'"></p>
         </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-rose-500">
             <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Debits</p>
-            <p class="text-2xl font-bold text-slate-900 mt-2">₹{{ number_format($totalDebits, 2) }}</p>
+            <p class="text-2xl font-bold text-slate-900 mt-2" x-text="showBalances ? '₹{{ number_format($totalDebits, 2) }}' : '₹ ••••'"></p>
         </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-indigo-500">
             <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Net P/L</p>
-            <p
-                class="text-2xl font-bold text-slate-900 mt-2 {{ $netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                ₹{{ number_format($netProfit, 2) }}
-            </p>
+            <p class="text-2xl font-bold text-slate-900 mt-2"
+               :class="showBalances ? '{{ $netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600' }}' : 'text-slate-900'"
+               x-text="showBalances ? '₹{{ number_format($netProfit, 2) }}' : '₹ ••••'"></p>
         </div>
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500">
-            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Savings Overview</p>
+            <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Net Worth</p>
             <div class="flex flex-col gap-1 mt-2">
-                <p class="text-2xl font-bold text-slate-900">₹{{ number_format($totalSavings, 2) }}</p>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">In Savings Accounts</p>
+                <p class="text-2xl font-bold text-slate-900" x-text="showBalances ? '₹{{ number_format($netWorth, 2) }}' : '₹ ••••'"></p>
+                <div class="space-y-1 mt-1">
+                    <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <span>Assets: <span x-text="showBalances ? '₹{{ number_format($totalAssets, 2) }}' : '₹ ••••'"></span></span>
+                        <span>Debt: <span x-text="showBalances ? '₹{{ number_format($totalLiabilities, 2) }}' : '₹ ••••'"></span></span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] text-emerald-600 font-black uppercase tracking-widest pt-1 border-t border-slate-50">
+                        <span>Savings A/C:</span>
+                        <span x-text="showBalances ? '₹{{ number_format($totalSavings, 2) }}' : '₹ ••••'"></span>
+                    </div>
+                </div>
             </div>
             <div class="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50">
                 <div class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
-                <span class="text-xs font-bold text-slate-600">₹{{ number_format($monthlySavings, 2) }} saved this
-                    month</span>
+                <span class="text-xs font-bold text-slate-600">₹{{ number_format($monthlySavings, 2) }} saved this month</span>
             </div>
         </div>
     </div>
@@ -96,7 +103,7 @@ new class extends Component {
                             <p class="font-bold text-slate-800">{{ $account->name }}</p>
                             <p class="text-xs text-slate-400 uppercase tracking-widest mt-1">Balance</p>
                         </div>
-                        <p class="text-lg font-black text-slate-900">₹{{ number_format($account->balance, 2) }}</p>
+                        <p class="text-lg font-black text-slate-900" x-text="showBalances ? '₹{{ number_format($account->balance, 2) }}' : '₹ ••••'"></p>
                     </div>
                 @empty
                     <div class="bg-slate-100 p-8 rounded-2xl border border-dashed border-slate-300 text-center">

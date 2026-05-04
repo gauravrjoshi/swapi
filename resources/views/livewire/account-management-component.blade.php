@@ -8,13 +8,24 @@ new class extends Component
 {
     public $name;
     public $initial_balance = 0;
-    public $is_savings = false;
+    public $account_type = 'savings';
+    public $bank_name;
+    public $account_holder_name;
+    public $account_number;
+    public $ifsc_code;
+    public $branch_address;
     
     public $editingAccountId = null;
     public $editName;
     public $editBalance;
-    public $editIsSavings = false;
+    public $editAccountType = 'savings';
+    public $editBankName;
+    public $editAccountHolderName;
+    public $editAccountNumber;
+    public $editIfscCode;
+    public $editBranchAddress;
 
+    public $sharingAccountId = null;
     public $confirmingDeletionId = null;
 
     public function createAccount()
@@ -22,17 +33,27 @@ new class extends Component
         $validated = $this->validate([
             'name' => 'required|string|max:255',
             'initial_balance' => 'required|numeric',
-            'is_savings' => 'boolean',
+            'account_type' => 'required|in:general,savings,liability',
+            'bank_name' => 'nullable|string|max:255',
+            'account_holder_name' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'branch_address' => 'nullable|string|max:500',
         ]);
 
         Account::create([
             'name' => $this->name,
             'balance' => $this->initial_balance,
-            'is_savings' => $this->is_savings,
+            'account_type' => $this->account_type,
+            'bank_name' => $this->bank_name,
+            'account_holder_name' => $this->account_holder_name,
+            'account_number' => $this->account_number,
+            'ifsc_code' => $this->ifsc_code,
+            'branch_address' => $this->branch_address,
             'user_id' => Auth::id(),
         ]);
 
-        $this->reset(['name', 'initial_balance', 'is_savings']);
+        $this->reset(['name', 'initial_balance', 'account_type', 'bank_name', 'account_holder_name', 'account_number', 'ifsc_code', 'branch_address']);
         session()->flash('account-message', 'Account created successfully.');
     }
 
@@ -43,7 +64,12 @@ new class extends Component
         $this->editingAccountId = $id;
         $this->editName = $account->name;
         $this->editBalance = $account->balance;
-        $this->editIsSavings = (bool) $account->is_savings;
+        $this->editAccountType = $account->account_type;
+        $this->editBankName = $account->bank_name;
+        $this->editAccountHolderName = $account->account_holder_name;
+        $this->editAccountNumber = $account->account_number;
+        $this->editIfscCode = $account->ifsc_code;
+        $this->editBranchAddress = $account->branch_address;
     }
 
     public function updateAccount()
@@ -53,13 +79,23 @@ new class extends Component
         $validated = $this->validate([
             'editName' => 'required|string|max:255',
             'editBalance' => 'required|numeric',
-            'editIsSavings' => 'boolean',
+            'editAccountType' => 'required|in:general,savings,liability',
+            'editBankName' => 'nullable|string|max:255',
+            'editAccountHolderName' => 'nullable|string|max:255',
+            'editAccountNumber' => 'nullable|string|max:255',
+            'editIfscCode' => 'nullable|string|max:255',
+            'editBranchAddress' => 'nullable|string|max:500',
         ]);
 
         $account->update([
             'name' => $this->editName,
             'balance' => $this->editBalance,
-            'is_savings' => $this->editIsSavings,
+            'account_type' => $this->editAccountType,
+            'bank_name' => $this->editBankName,
+            'account_holder_name' => $this->editAccountHolderName,
+            'account_number' => $this->editAccountNumber,
+            'ifsc_code' => $this->editIfscCode,
+            'branch_address' => $this->editBranchAddress,
         ]);
 
         $this->cancelEdit();
@@ -91,7 +127,17 @@ new class extends Component
 
     public function cancelEdit()
     {
-        $this->reset(['editingAccountId', 'editName', 'editBalance', 'editIsSavings']);
+        $this->reset(['editingAccountId', 'editName', 'editBalance', 'editIsSavings', 'editBankName', 'editAccountHolderName', 'editAccountNumber', 'editIfscCode', 'editBranchAddress']);
+    }
+
+    public function shareAccount($id)
+    {
+        $this->sharingAccountId = $id;
+    }
+
+    public function closeShare()
+    {
+        $this->sharingAccountId = null;
     }
 
     public function with()
@@ -120,18 +166,49 @@ new class extends Component
                         <h3 class="text-lg font-bold text-slate-800">Edit Account</h3>
                         <form wire:submit="updateAccount" class="space-y-4">
                             <div class="space-y-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Name</label>
-                                <input type="text" wire:model="editName" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Name <span class="text-rose-500">*</span></label>
+                                <input type="text" wire:model="editName" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                @error('editName') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Current Balance <span class="text-rose-500">*</span></label>
+                                    <input type="number" step="0.01" wire:model="editBalance" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                    @error('editBalance') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Type <span class="text-rose-500">*</span></label>
+                                    <select wire:model="editAccountType" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all font-black text-sm">
+                                        <option value="general">General </option>
+                                        <option value="savings">Savings</option>
+                                        <option value="liability">Liability (Owed)</option>
+                                    </select>
+                                    @error('editAccountType') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                                </div>
                             </div>
                             <div class="space-y-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Current Balance</label>
-                                <input type="number" step="0.01" wire:model="editBalance" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Bank Name</label>
+                                <input type="text" wire:model="editBankName" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
                             </div>
-                            <div class="flex items-center gap-3 p-1">
-                                <input type="checkbox" wire:model="editIsSavings" id="editIsSavings" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
-                                <label for="editIsSavings" class="text-sm font-bold text-slate-700">Is Savings Account?</label>
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Holder</label>
+                                <input type="text" wire:model="editAccountHolderName" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
                             </div>
-                            <div class="flex gap-2">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Number</label>
+                                    <input type="text" wire:model="editAccountNumber" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">IFSC Code</label>
+                                    <input type="text" wire:model="editIfscCode" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Branch Address</label>
+                                <textarea wire:model="editBranchAddress" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all"></textarea>
+                            </div>
+                            <div class="flex gap-2 pt-2">
                                 <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100">
                                     Update
                                 </button>
@@ -144,16 +221,47 @@ new class extends Component
                         <h3 class="text-lg font-bold text-slate-800">Add Account</h3>
                         <form wire:submit="createAccount" class="space-y-4">
                             <div class="space-y-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Name</label>
-                                <input type="text" wire:model="name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="e.g. HDFC Bank">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Name <span class="text-rose-500">*</span></label>
+                                <input type="text" wire:model="name" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="e.g. HDFC Bank">
+                                @error('name') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Initial Balance <span class="text-rose-500">*</span></label>
+                                    <input type="number" step="0.01" wire:model="initial_balance" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                    @error('initial_balance') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Type <span class="text-rose-500">*</span></label>
+                                    <select wire:model="account_type" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all font-black text-sm">
+                                        <option value="general">General  </option>
+                                        <option value="savings">Savings</option>
+                                        <option value="liability">Liability (Owed)</option>
+                                    </select>
+                                    @error('account_type') <span class="text-[10px] text-rose-500 font-bold ml-1">{{ $message }}</span> @enderror
+                                </div>
                             </div>
                             <div class="space-y-1">
-                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Initial Balance</label>
-                                <input type="number" step="0.01" wire:model="initial_balance" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Bank Name</label>
+                                <input type="text" wire:model="bank_name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="e.g. HDFC Bank">
                             </div>
-                            <div class="flex items-center gap-3 p-1">
-                                <input type="checkbox" wire:model="is_savings" id="is_savings" class="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
-                                <label for="is_savings" class="text-sm font-bold text-slate-700">Is Savings Account?</label>
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Holder</label>
+                                <input type="text" wire:model="account_holder_name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="John Doe">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">Account Number</label>
+                                    <input type="text" wire:model="account_number" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="text-xs font-bold text-slate-500 uppercase ml-1">IFSC Code</label>
+                                    <input type="text" wire:model="ifsc_code" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all">
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-slate-500 uppercase ml-1">Branch Address</label>
+                                <textarea wire:model="branch_address" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 transition-all"></textarea>
                             </div>
                             <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
                                 Create Account
@@ -193,11 +301,16 @@ new class extends Component
                                                 <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Savings</span>
                                             @endif
                                         </div>
-                                        <p class="text-sm font-black text-indigo-600">₹{{ number_format($account->balance, 2) }}</p>
+                                        <p class="text-sm font-black text-indigo-600" x-text="showBalances ? '₹{{ number_format($account->balance, 2) }}' : '₹ ••••'"></p>
                                         <p class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">By {{ $account->user?->name ?? 'System' }}</p>
                                     </div>
                                 </div>
                                 <div class="flex gap-2">
+                                    <button wire:click="shareAccount({{ $account->id }})" class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Share Account Details">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                                        </svg>
+                                    </button>
                                     <button wire:click="editAccount({{ $account->id }})" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -244,4 +357,113 @@ new class extends Component
             </div>
         @endteleport
     @endif
+
+    <!-- Share Modal -->
+    @if($sharingAccountId)
+        @php $shareAccount = \App\Models\Account::find($sharingAccountId); @endphp
+        @teleport('body')
+            <div x-data="{ copying: false }" class="fixed inset-0 z-[99999] flex items-center justify-center p-4" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-center; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);">
+                <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden" style="background-color: white; border-radius: 1.5rem; width: 100%; max-width: 32rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                    <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                        <h3 class="text-xl font-bold">Share Account Details</h3>
+                        <button wire:click="closeShare" class="text-indigo-200 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-8 space-y-6">
+                        <!-- Preview Card (This will be captured as image) -->
+                        <div id="share-card" class="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl text-white shadow-lg space-y-4 relative overflow-hidden">
+                            <!-- Decorative circles -->
+                            <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                            <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                            
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-indigo-100 text-xs font-bold uppercase tracking-widest">Bank Name</p>
+                                    <p class="text-xl font-black">{{ $shareAccount->bank_name ?? $shareAccount->name }}</p>
+                                </div>
+                                <div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 pt-2">
+                                <div>
+                                    <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">Account Holder</p>
+                                    <p class="font-bold">{{ $shareAccount->account_holder_name ?? 'N/A' }}</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">Account Number</p>
+                                        <p class="font-mono font-bold tracking-wider">{{ $shareAccount->account_number ?? 'N/A' }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">IFSC Code</p>
+                                        <p class="font-mono font-bold tracking-wider">{{ $shareAccount->ifsc_code ?? 'N/A' }}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">Branch</p>
+                                    <p class="text-sm font-medium line-clamp-1">{{ $shareAccount->branch_address ?? 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col gap-3">
+                            <button 
+                                @click="
+                                    const text = `Bank: {{ $shareAccount->bank_name }}\nHolder: {{ $shareAccount->account_holder_name }}\nA/C: {{ $shareAccount->account_number }}\nIFSC: {{ $shareAccount->ifsc_code }}`;
+                                    navigator.clipboard.writeText(text);
+                                    copying = true;
+                                    setTimeout(() => copying = false, 2000);
+                                "
+                                class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all border-2 border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                            >
+                                <svg x-show="!copying" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                </svg>
+                                <svg x-show="copying" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span x-text="copying ? 'Copied to Clipboard!' : 'Copy Text Details'"></span>
+                            </button>
+
+                            <button 
+                                onclick="downloadCard()"
+                                class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Save as Image
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endteleport
+    @endif
+
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script>
+        function downloadCard() {
+            const card = document.getElementById('share-card');
+            html2canvas(card, {
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'account-details.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    </script>
 </div>

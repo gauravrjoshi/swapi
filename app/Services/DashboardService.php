@@ -28,8 +28,13 @@ class DashboardService
         $debits = Transaction::/* where('user_id', $userId)-> */ where('type', 'debit')->sum('amount');
         $net = $credits - $debits;
 
-        // Total savings = sum of balances of accounts marked as savings
-        $totalSavings = $accounts->where('is_savings', true)->sum('balance');
+        // Total assets = general + savings
+        $totalGeneral = $accounts->where('account_type', 'general')->sum('balance');
+        $totalSavings = $accounts->where('account_type', 'savings')->sum('balance');
+        $totalAssets = $totalGeneral + $totalSavings;
+        
+        $totalLiabilities = $accounts->where('account_type', 'liability')->sum('balance');
+        $netWorth = $totalAssets - $totalLiabilities;
 
         // This month's net change (credits - debits)
         $startOfMonth = now()->startOfMonth();
@@ -75,7 +80,11 @@ class DashboardService
             'totalCredits' => $credits,
             'totalDebits' => $debits,
             'netProfit' => $net,
+            'totalGeneral' => $totalGeneral,
             'totalSavings' => $totalSavings,
+            'totalAssets' => $totalAssets,
+            'totalLiabilities' => $totalLiabilities,
+            'netWorth' => $netWorth,
             'monthlyChange' => (float) $monthlyChange,
             'monthlySavings' => (float) $monthlySavings,
             'chartData' => $chartData,

@@ -12,9 +12,17 @@ class NotificationService
 {
     protected $messaging;
 
-    public function __construct(Messaging $messaging)
+    public function __construct()
     {
-        $this->messaging = $messaging;
+        // Only initialize Firebase if we are NOT in the local environment
+        if (!app()->isLocal()) {
+            try {
+                $this->messaging = app(Messaging::class);
+            } catch (\Throwable $e) {
+                // If it fails to initialize (e.g. missing JSON), we log it but don't crash the app
+                Log::error("Firebase failed to initialize: " . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -27,6 +35,17 @@ class NotificationService
      */
     public function sendToUser($user, string $title, string $body, array $data = []): bool
     {
+        // If in local environment, just log the notification and return success
+        if (app()->isLocal()) {
+            Log::info("Local Environment: Notification would be sent to User ID {$user->id}. Title: {$title}, Body: {$body}");
+            return true;
+        }
+
+        if (!$this->messaging) {
+            Log::warning("Firebase Messaging is not configured or initialized. Notification skipped.");
+            return false;
+        }
+
         if (!$user->fcm_token) {
             Log::channel('slack')->info("Attempted to send notification to User ID {$user->id} but no FCM token was found.");
             return false;

@@ -102,7 +102,14 @@ class TransactionService
 
         $account = Account::find($accountId);
         if ($account) {
-            $account->balance += $amount;
+            // For Savings accounts: Positive amount increases balance (Credit), Negative decreases it (Debit).
+            // For Liability accounts: Positive amount (Repayment/Credit) DECREASES the debt.
+            //                        Negative amount (Borrowing/Debit) INCREASES the debt.
+            if ($account->account_type === 'liability') {
+                $account->balance -= $amount;
+            } else {
+                $account->balance += $amount;
+            }
             $account->save();
         }
     }
