@@ -10,6 +10,7 @@ new class extends Component {
     public $search = '';
     public $typeFilter = '';
     public $userFilter = '';
+    public $accountFilter = '';
     public $fromDate = '';
     public $toDate = '';
     public $confirmingTransactionDeletionId = null;
@@ -25,6 +26,11 @@ new class extends Component {
     }
 
     public function updatingUserFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingAccountFilter()
     {
         $this->resetPage();
     }
@@ -72,10 +78,12 @@ new class extends Component {
                 'search' => $this->search,
                 'type' => $this->typeFilter,
                 'user_id' => $this->userFilter,
+                'account_id' => $this->accountFilter,
                 'from_date' => $this->fromDate,
                 'to_date' => $this->toDate,
             ], 20),
             'users' => \App\Models\User::all(),
+            'accounts' => \App\Models\Account::orderBy('name')->get(),
         ];
     }
 };
@@ -88,7 +96,7 @@ new class extends Component {
             <p class="text-slate-500 mt-1">View and manage every financial record in the system</p>
         </div>
         <div class="flex gap-4">
-            <a href="{{ route('transactions.download', ['search' => $search, 'type' => $typeFilter, 'user' => $userFilter, 'from' => $fromDate, 'to' => $toDate]) }}"
+            <a href="{{ route('transactions.download', ['search' => $search, 'type' => $typeFilter, 'user' => $userFilter, 'account' => $accountFilter, 'from' => $fromDate, 'to' => $toDate]) }}"
                 class="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
@@ -156,8 +164,16 @@ new class extends Component {
                     @endforeach
                 </select>
 
-                @if($fromDate || $toDate || $typeFilter || $userFilter || $search)
-                    <button wire:click="$reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'search'])"
+                <select wire:model.live="accountFilter"
+                    class="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-50 transition-all outline-none">
+                    <option value="">All Accounts</option>
+                    @foreach($accounts as $account)
+                        <option value="{{ $account->id }}">{{ $account->name }}</option>
+                    @endforeach
+                </select>
+
+                @if($fromDate || $toDate || $typeFilter || $userFilter || $accountFilter || $search)
+                    <button wire:click="$reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search'])"
                         class="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all text-xs uppercase tracking-widest">
                         Reset
                     </button>

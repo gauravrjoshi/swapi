@@ -35,6 +35,14 @@ Route::middleware(['auth'])->group(function () {
             $query->where('user_id', $request->user);
         }
 
+        if ($request->account) {
+            $query->where(function ($q) use ($request) {
+                $q->where('account_id', $request->account)
+                  ->orWhere('from_account_id', $request->account)
+                  ->orWhere('to_account_id', $request->account);
+            });
+        }
+
         if ($request->from) {
             $query->whereDate('date', '>=', $request->from);
         }
@@ -48,6 +56,7 @@ Route::middleware(['auth'])->group(function () {
             'search' => $request->search,
             'type' => $request->type,
             'user' => $request->user,
+            'account' => $request->account,
             'from' => $request->from,
             'to' => $request->to,
         ];

@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Account;
 use App\Models\Transaction;
-use Illuminate\Support\Facades\Auth;
 
 class DashboardService
 {
@@ -14,11 +12,9 @@ class DashboardService
     {
         $this->accountService = $accountService;
     }
+
     /**
      * Get all dashboard data for a specific user.
-     *
-     * @param int $userId
-     * @return array
      */
     public function getDashboardData(int $userId): array
     {
@@ -32,7 +28,7 @@ class DashboardService
         $totalGeneral = $accounts->where('account_type', 'general')->sum('balance');
         $totalSavings = $accounts->where('account_type', 'savings')->sum('balance');
         $totalAssets = $totalGeneral + $totalSavings;
-        
+
         $totalLiabilities = $accounts->where('account_type', 'liability')->sum('balance');
         $netWorth = $totalAssets - $totalLiabilities;
 

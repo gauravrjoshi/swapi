@@ -37,6 +37,7 @@ class AccountController extends Controller
         ]);
 
         $validated['user_id'] = $request->user()->id;
+        $validated['initial_balance'] = $validated['balance'];
 
         $account = $this->accountService->createAccount($validated);
 

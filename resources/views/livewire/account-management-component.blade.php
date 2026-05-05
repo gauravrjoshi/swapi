@@ -44,6 +44,7 @@ new class extends Component
         Account::create([
             'name' => $this->name,
             'balance' => $this->initial_balance,
+            'initial_balance' => $this->initial_balance,
             'account_type' => $this->account_type,
             'bank_name' => $this->bank_name,
             'account_holder_name' => $this->account_holder_name,
@@ -302,7 +303,9 @@ new class extends Component
                                             @endif
                                         </div>
                                         <p class="text-sm font-black text-indigo-600" x-text="showBalances ? '₹{{ number_format($account->balance, 2) }}' : '₹ ••••'"></p>
-                                        <p class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">By {{ $account->user?->name ?? 'System' }}</p>
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+                                            Initial: ₹{{ number_format($account->initial_balance ?? 0, 2) }} • By {{ $account->user?->name ?? 'System' }}
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="flex gap-2">

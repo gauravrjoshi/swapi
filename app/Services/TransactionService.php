@@ -249,6 +249,14 @@ class TransactionService
             $query->where('type', $filters['type']);
         }
 
+        if (!empty($filters['account_id'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('account_id', $filters['account_id'])
+                  ->orWhere('from_account_id', $filters['account_id'])
+                  ->orWhere('to_account_id', $filters['account_id']);
+            });
+        }
+
         if (!empty($filters['from_date'])) {
             $query->whereDate('date', '>=', $filters['from_date']);
         }
