@@ -58,7 +58,7 @@ new class extends Component {
     public function deleteTransaction(App\Services\TransactionService $service)
     {
         $transaction = Transaction::findOrFail($this->confirmingTransactionDeletionId);
-        
+
         if (!$transaction->canBeManagedBy(Auth::id())) {
             $this->confirmingTransactionDeletionId = null;
             session()->flash('message', 'You do not have permission to delete this transaction.');
@@ -89,7 +89,8 @@ new class extends Component {
 };
 ?>
 
-<div class="p-6 w-full mx-auto space-y-6">
+<div class="p-6 w-full mx-auto space-y-6" x-data="{ showNewEntryModal: false }"
+    @transaction-saved.window="showNewEntryModal = false; $wire.$refresh()">
     <header class="flex justify-between items-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
         <div>
             <h1 class="text-3xl font-bold text-slate-900 tracking-tight">All Transactions</h1>
@@ -105,7 +106,7 @@ new class extends Component {
                 </svg>
                 Download PDF
             </a>
-            <a href="/transactions/new"
+            <button @click="showNewEntryModal = true; $dispatch('new-transaction')"
                 class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-100 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
@@ -113,7 +114,7 @@ new class extends Component {
                         clip-rule="evenodd" />
                 </svg>
                 New Entry
-            </a>
+            </button>
         </div>
     </header>
 
@@ -173,7 +174,8 @@ new class extends Component {
                 </select>
 
                 @if($fromDate || $toDate || $typeFilter || $userFilter || $accountFilter || $search)
-                    <button wire:click="$reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search'])"
+                    <button
+                        wire:click="$reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search'])"
                         class="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all text-xs uppercase tracking-widest">
                         Reset
                     </button>
@@ -240,9 +242,9 @@ new class extends Component {
                             </td>
                             <td class="px-6 py-5 text-right whitespace-nowrap">
                                 <span class="text-sm font-black 
-                                                {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
-                                                {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
-                                                {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
+                                                                {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
+                                                                {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
+                                                                {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
                                     {{ $tx->type === 'debit' ? '-' : '' }}₹{{ number_format($tx->amount, 2) }}
                                 </span>
                             </td>
@@ -250,16 +252,19 @@ new class extends Component {
                                 <div
                                     class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                     @if($tx->canBeManagedBy(Auth::id()))
-                                        <a href="/transactions/{{ $tx->id }}/edit"
-                                            class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Edit Transaction">
+                                        <button
+                                            @click="showNewEntryModal = true; $dispatch('edit-transaction', { id: {{ $tx->id }} })"
+                                            class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm"
+                                            title="Edit Transaction">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                                 viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                             </svg>
-                                        </a>
+                                        </button>
                                         <button wire:click="confirmTransactionDelete({{ $tx->id }})"
-                                            class="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Delete Transaction">
+                                            class="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-xl transition-all shadow-sm"
+                                            title="Delete Transaction">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                                 viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -268,8 +273,10 @@ new class extends Component {
                                         </button>
                                     @else
                                         <div class="p-2 text-slate-300" title="Read-only: You do not own this account">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                             </svg>
                                         </div>
                                     @endif
@@ -343,4 +350,47 @@ new class extends Component {
             {{ session('message') }}
         </div>
     @endif
+
+    <!-- New Entry Modal -->
+    <div x-show="showNewEntryModal" style="display: none;" class="fixed inset-0 z-[100] overflow-y-auto"
+        aria-labelledby="modal-title" role="dialog" aria-modal="true">
+
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Background overlay -->
+            <div x-show="showNewEntryModal" x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"
+                @click="showNewEntryModal = false" aria-hidden="true"></div>
+
+            <!-- This element is to trick the browser into centering the modal contents. -->
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <!-- Modal panel -->
+            <div x-show="showNewEntryModal" x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="inline-block align-bottom bg-transparent rounded-3xl text-left overflow-hidden transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full relative">
+
+                <!-- Close Button -->
+                <div class="absolute top-4 right-4 z-50">
+                    <button @click="showNewEntryModal = false"
+                        class="bg-slate-800 hover:bg-slate-700 text-white rounded-full p-2 backdrop-blur-md transition-all shadow-lg border border-slate-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="bg-transparent p-0">
+                    <livewire:transaction-form-component :isModal="true" />
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
