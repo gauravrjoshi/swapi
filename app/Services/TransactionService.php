@@ -69,16 +69,18 @@ class TransactionService
 
             switch ($type) {
                 case 'credit':
-                    $this->updateBalance($data['account_id'], $amount);
+                    $transaction->running_balance = $this->updateBalance($data['account_id'], $amount);
                     break;
                 case 'debit':
-                    $this->updateBalance($data['account_id'], -$amount);
+                    $transaction->running_balance = $this->updateBalance($data['account_id'], -$amount);
                     break;
                 case 'transfer':
-                    $this->updateBalance($data['from_account_id'], -$amount);
-                    $this->updateBalance($data['to_account_id'], $amount);
+                    $transaction->from_account_running_balance = $this->updateBalance($data['from_account_id'], -$amount);
+                    $transaction->to_account_running_balance = $this->updateBalance($data['to_account_id'], $amount);
                     break;
             }
+
+            $transaction->save();
 
             // Send Push Notification
             $this->sendTransactionNotification($transaction);
@@ -94,10 +96,10 @@ class TransactionService
      * @param float $amount
      * @return void
      */
-    protected function updateBalance(?int $accountId, float $amount): void
+    protected function updateBalance(?int $accountId, float $amount): ?float
     {
         if (!$accountId) {
-            return;
+            return null;
         }
 
         $account = Account::find($accountId);
@@ -111,7 +113,9 @@ class TransactionService
                 $account->balance += $amount;
             }
             $account->save();
+            return $account->balance;
         }
+        return null;
     }
 
     /**
@@ -183,16 +187,23 @@ class TransactionService
 
             switch ($type) {
                 case 'credit':
-                    $this->updateBalance($accountId, $amount);
+                    $transaction->running_balance = $this->updateBalance($accountId, $amount);
+                    $transaction->from_account_running_balance = null;
+                    $transaction->to_account_running_balance = null;
                     break;
                 case 'debit':
-                    $this->updateBalance($accountId, -$amount);
+                    $transaction->running_balance = $this->updateBalance($accountId, -$amount);
+                    $transaction->from_account_running_balance = null;
+                    $transaction->to_account_running_balance = null;
                     break;
                 case 'transfer':
-                    $this->updateBalance($fromAccountId, -$amount);
-                    $this->updateBalance($toAccountId, $amount);
+                    $transaction->from_account_running_balance = $this->updateBalance($fromAccountId, -$amount);
+                    $transaction->to_account_running_balance = $this->updateBalance($toAccountId, $amount);
+                    $transaction->running_balance = null;
                     break;
             }
+
+            $transaction->save();
 
             $this->sendTransactionNotification($transaction, 'update');
 

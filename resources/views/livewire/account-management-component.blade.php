@@ -3,6 +3,7 @@
 use Livewire\Volt\Component;
 use App\Models\Account;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 new class extends Component
 {
@@ -31,7 +32,12 @@ new class extends Component
     public function createAccount()
     {
         $validated = $this->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('accounts', 'name')->where(fn ($query) => $query->where('user_id', Auth::id())),
+            ],
             'initial_balance' => 'required|numeric',
             'account_type' => 'required|in:general,savings,liability',
             'bank_name' => 'nullable|string|max:255',
@@ -46,6 +52,7 @@ new class extends Component
             'balance' => $this->initial_balance,
             'initial_balance' => $this->initial_balance,
             'account_type' => $this->account_type,
+            'is_savings' => $this->account_type === 'savings',
             'bank_name' => $this->bank_name,
             'account_holder_name' => $this->account_holder_name,
             'account_number' => $this->account_number,
@@ -61,6 +68,11 @@ new class extends Component
     public function editAccount($id)
     {
         $account = Account::findOrFail($id);
+
+        if ($account->user_id != Auth::id() && !Auth::user()->is_admin) {
+            session()->flash('account-error', 'You do not have permission to edit this account.');
+            return;
+        }
 
         $this->editingAccountId = $id;
         $this->editName = $account->name;
@@ -78,7 +90,14 @@ new class extends Component
         $account = Account::findOrFail($this->editingAccountId);
 
         $validated = $this->validate([
-            'editName' => 'required|string|max:255',
+            'editName' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('accounts', 'name')
+                    ->where(fn ($query) => $query->where('user_id', Auth::id()))
+                    ->ignore($this->editingAccountId),
+            ],
             'editBalance' => 'required|numeric',
             'editAccountType' => 'required|in:general,savings,liability',
             'editBankName' => 'nullable|string|max:255',
@@ -92,6 +111,7 @@ new class extends Component
             'name' => $this->editName,
             'balance' => $this->editBalance,
             'account_type' => $this->editAccountType,
+            'is_savings' => $this->editAccountType === 'savings',
             'bank_name' => $this->editBankName,
             'account_holder_name' => $this->editAccountHolderName,
             'account_number' => $this->editAccountNumber,
@@ -128,7 +148,7 @@ new class extends Component
 
     public function cancelEdit()
     {
-        $this->reset(['editingAccountId', 'editName', 'editBalance', 'editIsSavings', 'editBankName', 'editAccountHolderName', 'editAccountNumber', 'editIfscCode', 'editBranchAddress']);
+        $this->reset(['editingAccountId', 'editName', 'editBalance', 'editAccountType', 'editBankName', 'editAccountHolderName', 'editAccountNumber', 'editIfscCode', 'editBranchAddress']);
     }
 
     public function shareAccount($id)
@@ -143,8 +163,14 @@ new class extends Component
 
     public function with()
     {
+        $query = Account::with('user');
+        
+        if (!Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+
         return [
-            'accounts' => Account::with('user')->get(),
+            'accounts' => $query->get(),
         ];
     }
 };

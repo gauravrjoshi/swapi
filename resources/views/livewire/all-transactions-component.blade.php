@@ -183,6 +183,23 @@ new class extends Component {
             </div>
         </div>
 
+        @php
+            $currentBalance = 0;
+            $balanceLabel = 'Total Balance';
+            if ($accountFilter) {
+                $filteredAccount = \App\Models\Account::find($accountFilter);
+                $currentBalance = $filteredAccount?->balance ?? 0;
+                $balanceLabel = ($filteredAccount?->name ?? 'Account') . ' Balance';
+            } else {
+                $currentBalance = \App\Models\Account::sum('balance');
+            }
+        @endphp
+
+        <div class="px-8 py-4 bg-indigo-50/50 flex justify-end items-center gap-4">
+            <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">{{ $balanceLabel }}</span>
+            <span class="text-2xl font-black text-indigo-600">₹{{ number_format($currentBalance, 2) }}</span>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
@@ -197,6 +214,9 @@ new class extends Component {
                         <th
                             class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
                             Amount</th>
+                        <th
+                            class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                            Balance After</th>
                         <th
                             class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
                             Actions</th>
@@ -247,6 +267,24 @@ new class extends Component {
                                                                 {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
                                     {{ $tx->type === 'debit' ? '-' : '' }}₹{{ number_format($tx->amount, 2) }}
                                 </span>
+                            </td>
+                            <td class="px-6 py-5 text-right whitespace-nowrap">
+                                @if($tx->type === 'transfer')
+                                    <div class="flex flex-col items-end gap-1">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[9px] font-bold text-slate-400 uppercase">Src:</span>
+                                            <span class="text-xs font-black text-slate-600">₹{{ number_format($tx->from_account_running_balance ?? 0, 2) }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[9px] font-bold text-slate-400 uppercase">Dst:</span>
+                                            <span class="text-xs font-black text-slate-600">₹{{ number_format($tx->to_account_running_balance ?? 0, 2) }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-sm font-black text-slate-600">
+                                        ₹{{ number_format($tx->running_balance ?? 0, 2) }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-6 py-5 text-right whitespace-nowrap">
                                 <div
