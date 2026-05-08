@@ -26,11 +26,17 @@ class Transaction extends Model
         'from_account_id',
         'to_account_id',
         'description',
+        'running_balance',
+        'from_account_running_balance',
+        'to_account_running_balance',
     ];
 
     protected $casts = [
         'date' => 'date',
         'amount' => 'decimal:2',
+        'running_balance' => 'decimal:2',
+        'from_account_running_balance' => 'decimal:2',
+        'to_account_running_balance' => 'decimal:2',
     ];
 
     public function user()
