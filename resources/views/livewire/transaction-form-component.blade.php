@@ -173,15 +173,30 @@ new class extends Component {
             }
         }
 
+        $entriesToSave = array_map(function ($entry) {
+            foreach ($entry as $key => $value) {
+                if ($value === '') {
+                    $entry[$key] = null;
+                }
+            }
+            if ($entry['type'] !== 'transfer') {
+                $entry['from_account_id'] = null;
+                $entry['to_account_id'] = null;
+            } else {
+                $entry['account_id'] = null;
+            }
+            return $entry;
+        }, $this->entries);
+
         if ($this->transactionId) {
             $transaction = Transaction::findOrFail($this->transactionId);
-            $service->updateTransaction($transaction, $this->entries[0]);
+            $service->updateTransaction($transaction, $entriesToSave[0]);
             session()->flash('message', 'Transaction updated successfully.');
         } else {
-            foreach ($this->entries as $entry) {
+            foreach ($entriesToSave as $entry) {
                 $service->createTransaction($entry);
             }
-            session()->flash('message', count($this->entries) > 1 ? count($this->entries) . ' transactions recorded successfully.' : 'Transaction recorded successfully.');
+            session()->flash('message', count($entriesToSave) > 1 ? count($entriesToSave) . ' transactions recorded successfully.' : 'Transaction recorded successfully.');
         }
 
         if ($this->isModal) {
@@ -325,17 +340,17 @@ new class extends Component {
                                     <span
                                         class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg transition-colors"
                                         :class="{
-                                                    'text-rose-400': currentType === 'debit',
-                                                    'text-emerald-400': currentType === 'credit',
-                                                    'text-indigo-400': currentType === 'transfer'
-                                                }">₹</span>
+                                                        'text-rose-400': currentType === 'debit',
+                                                        'text-emerald-400': currentType === 'credit',
+                                                        'text-indigo-400': currentType === 'transfer'
+                                                    }">₹</span>
                                     <input type="number" step="0.01" wire:model="entries.{{ $index }}.amount" required
                                         class="w-full pl-10 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 transition-all font-black text-lg shadow-sm"
                                         :class="{
-                                                    'text-rose-600 focus:ring-rose-50 focus:border-rose-500': currentType === 'debit',
-                                                    'text-emerald-600 focus:ring-emerald-50 focus:border-emerald-500': currentType === 'credit',
-                                                    'text-indigo-600 focus:ring-indigo-50 focus:border-indigo-500': currentType === 'transfer'
-                                                }" placeholder="0.00">
+                                                        'text-rose-600 focus:ring-rose-50 focus:border-rose-500': currentType === 'debit',
+                                                        'text-emerald-600 focus:ring-emerald-50 focus:border-emerald-500': currentType === 'credit',
+                                                        'text-indigo-600 focus:ring-indigo-50 focus:border-indigo-500': currentType === 'transfer'
+                                                    }" placeholder="0.00">
                                 </div>
                                 @error("entries.$index.amount") <span
                                 class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror
@@ -346,15 +361,15 @@ new class extends Component {
                                 <label
                                     class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Category</label>
                                 <div class="relative" x-data="{ 
-                                                open: false,
-                                                focusSearch() {
-                                                    $nextTick(() => {
-                                                        if (this.open && this.$refs.searchInput) {
-                                                            this.$refs.searchInput.focus();
-                                                        }
-                                                    });
-                                                }
-                                             }" x-effect="if(open) focusSearch()" @click.away="open = false">
+                                                    open: false,
+                                                    focusSearch() {
+                                                        $nextTick(() => {
+                                                            if (this.open && this.$refs.searchInput) {
+                                                                this.$refs.searchInput.focus();
+                                                            }
+                                                        });
+                                                    }
+                                                 }" x-effect="if(open) focusSearch()" @click.away="open = false">
                                     <button type="button" @click="open = !open"
                                         class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer flex justify-between items-center text-base shadow-sm">
                                         <div class="flex items-center gap-3">
