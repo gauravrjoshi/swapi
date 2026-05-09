@@ -183,22 +183,6 @@ new class extends Component {
             </div>
         </div>
 
-        @php
-            $currentBalance = 0;
-            $balanceLabel = 'Total Balance';
-            if ($accountFilter) {
-                $filteredAccount = \App\Models\Account::find($accountFilter);
-                $currentBalance = $filteredAccount?->balance ?? 0;
-                $balanceLabel = ($filteredAccount?->name ?? 'Account') . ' Balance';
-            } else {
-                $currentBalance = \App\Models\Account::sum('balance');
-            }
-        @endphp
-
-        <div class="px-8 py-4 bg-indigo-50/50 flex justify-end items-center gap-4">
-            <span class="text-xs font-black text-indigo-400 uppercase tracking-widest">{{ $balanceLabel }}</span>
-            <span class="text-2xl font-black text-indigo-600">₹{{ number_format($currentBalance, 2) }}</span>
-        </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">

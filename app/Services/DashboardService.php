@@ -16,12 +16,24 @@ class DashboardService
     /**
      * Get all dashboard data for a specific user.
      */
-    public function getDashboardData(int $userId): array
+    public function getDashboardData(int $userId, ?string $startDate = null, ?string $endDate = null): array
     {
         $accounts = $this->accountService->getAccounts($userId);
 
-        $credits = Transaction::/* where('user_id', $userId)-> */ where('type', 'credit')->sum('amount');
-        $debits = Transaction::/* where('user_id', $userId)-> */ where('type', 'debit')->sum('amount');
+        $creditsQuery = Transaction::where('type', 'credit');
+        $debitsQuery = Transaction::where('type', 'debit');
+
+        if ($startDate) {
+            $creditsQuery->where('date', '>=', $startDate);
+            $debitsQuery->where('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $creditsQuery->where('date', '<=', $endDate);
+            $debitsQuery->where('date', '<=', $endDate);
+        }
+
+        $credits = $creditsQuery->sum('amount');
+        $debits = $debitsQuery->sum('amount');
         $net = $credits - $debits;
 
         // Total assets = general + savings
@@ -32,24 +44,18 @@ class DashboardService
         $totalLiabilities = $accounts->where('account_type', 'liability')->sum('balance');
         $netWorth = $totalAssets - $totalLiabilities;
 
-        // This month's net change (credits - debits)
-        $startOfMonth = now()->startOfMonth();
-        $endOfMonth = now()->endOfMonth();
+        // Period savings (transfers tagged as 'savings') — follows the same filter range
+        $savingsQuery = Transaction::where('type', 'transfer')
+            ->where('tag', 'like', 'savings');
 
-        $thisMonthCredits = Transaction::/* where('user_id', $userId)
--> */ whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->where('type', 'credit')->sum('amount');
-        $thisMonthDebits = Transaction::/* where('user_id', $userId)
--> */ whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->where('type', 'debit')->sum('amount');
-        $monthlyChange = $thisMonthCredits - $thisMonthDebits;
+        if ($startDate) {
+            $savingsQuery->where('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $savingsQuery->where('date', '<=', $endDate);
+        }
 
-        // Monthly savings = transfers tagged as 'savings'
-        $monthlySavings = Transaction::/* where('user_id', $userId)
--> */ where('type', 'transfer')
-            ->where('tag', 'like', 'savings')
-            ->whereBetween('date', [$startOfMonth, $endOfMonth])
-            ->sum('amount');
+        $monthlySavings = $savingsQuery->sum('amount');
 
         // Monthly savings chart data (last 6 months)
         $chartData = [];
@@ -58,16 +64,17 @@ class DashboardService
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd = $month->copy()->endOfMonth();
 
-            $mCredits = Transaction::/* where('user_id', $userId)
--> */ whereBetween('date', [$monthStart, $monthEnd])
-                ->where('type', 'credit')->sum('amount');
-            $mDebits = Transaction::/* where('user_id', $userId)
--> */ whereBetween('date', [$monthStart, $monthEnd])
-                ->where('type', 'debit')->sum('amount');
+            $mSavings = Transaction::where('type', 'transfer')
+                ->whereHas('toAccount', function ($q) {
+                    $q->where('account_type', 'savings')
+                      ->orWhere('is_savings', true);
+                })
+                ->whereBetween('date', [$monthStart, $monthEnd])
+                ->sum('amount');
 
             $chartData[] = [
                 'label' => $month->format('M Y'),
-                'savings' => (float) ($mCredits - $mDebits),
+                'savings' => (float) $mSavings,
             ];
         }
 
@@ -81,7 +88,6 @@ class DashboardService
             'totalAssets' => $totalAssets,
             'totalLiabilities' => $totalLiabilities,
             'netWorth' => $netWorth,
-            'monthlyChange' => (float) $monthlyChange,
             'monthlySavings' => (float) $monthlySavings,
             'chartData' => $chartData,
         ];

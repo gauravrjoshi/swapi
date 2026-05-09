@@ -77,6 +77,14 @@ Route::middleware(['auth'])->group(function () {
         return view('account_management_page');
     });
 
+    Route::get('/accounts/new', function () {
+        return view('account_form_page');
+    });
+
+    Route::get('/accounts/{account}/edit', function (App\Models\Account $account) {
+        return view('account_edit_page', ['account' => $account]);
+    });
+
     Route::get('/profile', function () {
         return view('profile_page');
     });

@@ -7,6 +7,45 @@ use Illuminate\Support\Facades\Auth;
 
 new class extends Component {
     public $confirmingTransactionDeletionId = null;
+    public $period = 'current_month';
+    public $startDate = null;
+    public $endDate = null;
+
+    public function mount()
+    {
+        $this->updatedPeriod();
+    }
+
+    public function updatedPeriod()
+    {
+        switch ($this->period) {
+            case 'current_month':
+                $this->startDate = now()->startOfMonth()->toDateString();
+                $this->endDate = now()->endOfMonth()->toDateString();
+                break;
+            case 'last_month':
+                $this->startDate = now()->subMonth()->startOfMonth()->toDateString();
+                $this->endDate = now()->subMonth()->endOfMonth()->toDateString();
+                break;
+            case 'this_quarter':
+                $this->startDate = now()->startOfQuarter()->toDateString();
+                $this->endDate = now()->endOfQuarter()->toDateString();
+                break;
+            case 'this_year':
+                $this->startDate = now()->startOfYear()->toDateString();
+                $this->endDate = now()->endOfYear()->toDateString();
+                break;
+            case 'all_time':
+                $this->startDate = null;
+                $this->endDate = null;
+                break;
+            case 'custom':
+                // Keep existing or default to current month if null
+                $this->startDate = $this->startDate ?? now()->startOfMonth()->toDateString();
+                $this->endDate = $this->endDate ?? now()->endOfMonth()->toDateString();
+                break;
+        }
+    }
 
     public function confirmTransactionDelete($id)
     {
@@ -29,20 +68,39 @@ new class extends Component {
 
     public function with(App\Services\DashboardService $service)
     {
-        return $service->getDashboardData(Auth::id());
+        return $service->getDashboardData(Auth::id(), $this->startDate, $this->endDate);
     }
 };
 ?>
 
 <div class="p-6 w-full mx-auto space-y-6 bg-slate-50 min-h-screen">
-    <header class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 gap-4">
         <div>
             <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Financial Overview</h1>
             <p class="text-slate-500 mt-1">Welcome back, {{ Auth::user()->name }}</p>
         </div>
-        <div class="flex gap-4">
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                <select wire:model.live="period" class="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer">
+                    <option value="current_month">Current Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="this_quarter">This Quarter</option>
+                    <option value="this_year">This Year</option>
+                    <option value="all_time">All Time</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+
+                @if($period === 'custom')
+                    <div class="flex items-center gap-2 px-2 border-l border-slate-200 ml-1">
+                        <input type="date" wire:model.live="startDate" class="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 p-0 w-28">
+                        <span class="text-slate-400 text-xs">to</span>
+                        <input type="date" wire:model.live="endDate" class="bg-transparent border-none text-xs font-medium text-slate-600 focus:ring-0 p-0 w-28">
+                    </div>
+                @endif
+            </div>
+
             <a href="/transactions/new"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md shadow-indigo-100 flex items-center gap-2">
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md shadow-indigo-100 flex items-center gap-2 whitespace-nowrap ml-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd"
                         d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
@@ -54,7 +112,20 @@ new class extends Component {
     </header>
 
     <!-- Metrics Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="space-y-2">
+        <div class="flex items-center justify-between px-2">
+            <h2 class="text-lg font-bold text-slate-800">Performance Metrics</h2>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                @if($period === 'all_time')
+                    Showing All Time
+                @elseif($period === 'custom')
+                    {{ \Carbon\Carbon::parse($startDate)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('M d, Y') }}
+                @else
+                    {{ str_replace('_', ' ', ucfirst($period)) }}
+                @endif
+            </p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-500">
             <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Credits</p>
             <p class="text-2xl font-bold text-slate-900 mt-2" x-text="showBalances ? '₹{{ number_format($totalCredits, 2) }}' : '₹ ••••'"></p>
@@ -84,39 +155,26 @@ new class extends Component {
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50">
+        <div class="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50">
                 <div class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></div>
-                <span class="text-xs font-bold text-slate-600">₹{{ number_format($monthlySavings, 2) }} saved this month</span>
+                <span class="text-xs font-bold text-slate-600">
+                    <span x-text="showBalances ? '₹{{ number_format($monthlySavings, 2) }}' : '₹ ••••'"></span> saved
+                    @if($period === 'current_month') this month
+                    @elseif($period === 'last_month') last month
+                    @elseif($period === 'this_quarter') this quarter
+                    @elseif($period === 'this_year') this year
+                    @elseif($period === 'all_time') all time
+                    @else in this period
+                    @endif
+                </span>
             </div>
+        </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Accounts Section -->
-        <div class="lg:col-span-1 space-y-4">
-            <h2 class="text-xl font-bold text-slate-900 px-2">Your Accounts</h2>
-            <div class="space-y-3">
-                @forelse($accounts as $account)
-                    <div
-                        class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center group hover:border-indigo-200 transition-colors">
-                        <div>
-                            <p class="font-bold text-slate-800">{{ $account->name }}</p>
-                            <p class="text-xs text-slate-400 uppercase tracking-widest mt-1">Balance</p>
-                        </div>
-                        <p class="text-lg font-black text-slate-900" x-text="showBalances ? '₹{{ number_format($account->balance, 2) }}' : '₹ ••••'"></p>
-                    </div>
-                @empty
-                    <div class="bg-slate-100 p-8 rounded-2xl border border-dashed border-slate-300 text-center">
-                        <p class="text-slate-500">No accounts found.</p>
-                        <a href="/accounts/new" class="text-indigo-600 font-bold text-sm mt-2 block">Create first
-                            account</a>
-                    </div>
-                @endforelse
-            </div>
-        </div>
-
+    <div class="grid grid-cols-1 gap-6">
         <!-- Monthly Savings Chart -->
-        <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-4">
             <h2 class="text-xl font-bold text-slate-900 px-2">Savings Growth</h2>
             <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 min-h-[250px] flex flex-col">
                 <div class="flex-1 relative">
