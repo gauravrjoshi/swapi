@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\Transaction;
-use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TransactionService
 {
     protected $accountService;
+
     protected $notificationService;
 
     public function __construct(AccountService $accountService, NotificationService $notificationService)
@@ -18,11 +18,9 @@ class TransactionService
         $this->accountService = $accountService;
         $this->notificationService = $notificationService;
     }
+
     /**
      * Create a new transaction and update account balances.
-     *
-     * @param array $data
-     * @return Transaction
      */
     public function createTransaction(array $data): Transaction
     {
@@ -46,12 +44,12 @@ class TransactionService
                 }
 
                 // If account_id is not set but from_account_id is, sync them
-                if (empty($data['account_id']) && !empty($data['from_account_id'])) {
+                if (empty($data['account_id']) && ! empty($data['from_account_id'])) {
                     $data['account_id'] = $data['from_account_id'];
                 }
             }
 
-            if (!isset($data['account'])) {
+            if (! isset($data['account'])) {
                 if (isset($data['account_id'])) {
                     $data['account'] = Account::find($data['account_id'])?->name ?? 'Unknown';
                 } elseif (isset($data['from_account_id'])) {
@@ -92,13 +90,11 @@ class TransactionService
     /**
      * Update account balance.
      *
-     * @param int|null $accountId
-     * @param float $amount
      * @return void
      */
     protected function updateBalance(?int $accountId, float $amount): ?float
     {
-        if (!$accountId) {
+        if (! $accountId) {
             return null;
         }
 
@@ -113,16 +109,15 @@ class TransactionService
                 $account->balance += $amount;
             }
             $account->save();
+
             return $account->balance;
         }
+
         return null;
     }
 
     /**
      * Delete a transaction and reverse its impact on account balances.
-     *
-     * @param Transaction $transaction
-     * @return void
      */
     public function deleteTransaction(Transaction $transaction): void
     {
@@ -135,10 +130,6 @@ class TransactionService
 
     /**
      * Update an existing transaction.
-     *
-     * @param Transaction $transaction
-     * @param array $data
-     * @return Transaction
      */
     public function updateTransaction(Transaction $transaction, array $data): Transaction
     {
@@ -165,7 +156,7 @@ class TransactionService
                 }
 
                 // If account_id is not set but from_account_id is, sync them
-                if (empty($data['account_id']) && !empty($data['from_account_id'])) {
+                if (empty($data['account_id']) && ! empty($data['from_account_id'])) {
                     $data['account_id'] = $data['from_account_id'];
                 }
             }
@@ -213,9 +204,6 @@ class TransactionService
 
     /**
      * Reverse the impact of a transaction on account balances.
-     *
-     * @param Transaction $transaction
-     * @return void
      */
     protected function reverseBalanceImpact(Transaction $transaction): void
     {
@@ -236,19 +224,19 @@ class TransactionService
         }
     }
 
-
     public function getTransactions(int $userId, array $filters = [], int $perPage = 10)
     {
         $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
             // ->where('user_id', $userId)
-            ->latest();
+            ->orderBy('date', 'desc')
+            ->orderBy('time', 'desc');
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $search = $filters['search'];
-                $q->where('description', 'like', '%' . $search . '%')
-                    ->orWhere('transaction_details', 'like', '%' . $search . '%')
-                    ->orWhere('tag', 'like', '%' . $search . '%');
+                $q->where('description', 'like', '%'.$search.'%')
+                    ->orWhere('transaction_details', 'like', '%'.$search.'%')
+                    ->orWhere('tag', 'like', '%'.$search.'%');
             });
         }
 
@@ -256,49 +244,48 @@ class TransactionService
         //     $query->where('user_id', $filters['user_id']);
         // }
 
-        if (!empty($filters['type'])) {
+        if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
-        if (!empty($filters['account_id'])) {
+        if (! empty($filters['account_id'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('account_id', $filters['account_id'])
-                  ->orWhere('from_account_id', $filters['account_id'])
-                  ->orWhere('to_account_id', $filters['account_id']);
+                    ->orWhere('from_account_id', $filters['account_id'])
+                    ->orWhere('to_account_id', $filters['account_id']);
             });
         }
 
-        if (!empty($filters['from_date'])) {
+        if (! empty($filters['from_date'])) {
             $query->whereDate('date', '>=', $filters['from_date']);
         }
 
-        if (!empty($filters['to_date'])) {
+        if (! empty($filters['to_date'])) {
             $query->whereDate('date', '<=', $filters['to_date']);
         }
 
         return $query->paginate($perPage);
     }
+
     /**
      * Send a push notification for a transaction.
      *
-     * @param Transaction $transaction
-     * @param string $action 'create', 'update', or 'delete'
-     * @return void
+     * @param  string  $action  'create', 'update', or 'delete'
      */
     protected function sendTransactionNotification(Transaction $transaction, string $action = 'create'): void
     {
         $owner = $transaction->user;
-        if (!$owner) {
+        if (! $owner) {
             return;
         }
 
         $type = ucfirst($transaction->type);
         $amount = number_format((float) $transaction->amount, 2);
-        $currency = "₹";
+        $currency = '₹';
         $ownerName = $owner->name ?? 'User';
 
-        $title = "Transaction Alert: " . ucfirst($action);
-        $body = "";
+        $title = 'Transaction Alert: '.ucfirst($action);
+        $body = '';
 
         if ($action === 'create') {
             switch ($transaction->type) {
