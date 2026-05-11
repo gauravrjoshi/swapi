@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardService
 {
@@ -14,82 +17,158 @@ class DashboardService
     }
 
     /**
-     * Get all dashboard data for a specific user.
+     * Get all dashboard metrics and chart data globally across all users.
      */
-    public function getDashboardData(int $userId, ?string $startDate = null, ?string $endDate = null): array
+    public function getDashboardData(?int $userId = null, array $params = []): array
     {
-        $accounts = $this->accountService->getAccounts($userId);
+        $startDate = $params['start_date'] ?? null;
+        $endDate = $params['end_date'] ?? null;
+        
+        $accounts = $this->accountService->getAccounts(null);
 
-        $creditsQuery = Transaction::where('type', 'credit');
-        $debitsQuery = Transaction::where('type', 'debit');
+        // Core Metrics (Global)
+        $credits = Transaction::where('type', 'credit')
+            ->when($startDate, fn($q) => $q->where('date', '>=', $startDate))
+            ->when($endDate, fn($q) => $q->where('date', '<=', $endDate))
+            ->sum('amount');
 
-        if ($startDate) {
-            $creditsQuery->where('date', '>=', $startDate);
-            $debitsQuery->where('date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $creditsQuery->where('date', '<=', $endDate);
-            $debitsQuery->where('date', '<=', $endDate);
-        }
+        $debits = Transaction::where('type', 'debit')
+            ->when($startDate, fn($q) => $q->where('date', '>=', $startDate))
+            ->when($endDate, fn($q) => $q->where('date', '<=', $endDate))
+            ->sum('amount');
 
-        $credits = $creditsQuery->sum('amount');
-        $debits = $debitsQuery->sum('amount');
-        $net = $credits - $debits;
-
-        // Total assets = general + savings
         $totalGeneral = $accounts->where('account_type', 'general')->sum('balance');
         $totalSavings = $accounts->where('account_type', 'savings')->sum('balance');
         $totalAssets = $totalGeneral + $totalSavings;
-
         $totalLiabilities = $accounts->where('account_type', 'liability')->sum('balance');
         $netWorth = $totalAssets - $totalLiabilities;
 
-        // Period savings (transfers tagged as 'savings') — follows the same filter range
-        $savingsQuery = Transaction::where('type', 'transfer')
-            ->where('tag', 'like', 'savings');
+        $periodSavings = Transaction::where('tag', 'savings')
+            ->when($startDate, fn($q) => $q->where('date', '>=', $startDate))
+            ->when($endDate, fn($q) => $q->where('date', '<=', $endDate))
+            ->sum('amount');
 
-        if ($startDate) {
-            $savingsQuery->where('date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $savingsQuery->where('date', '<=', $endDate);
-        }
+        $growthData = $this->getMonthlySavingsGrowth();
 
-        $monthlySavings = $savingsQuery->sum('amount');
+        $expenseFilterStart = $params['expense_start_date'] ?? $startDate;
+        $expenseFilterEnd = $params['expense_end_date'] ?? $endDate;
+        $expenseData = $this->getExpenseDistribution($expenseFilterStart, $expenseFilterEnd);
 
-        // Monthly savings chart data (last 6 months)
-        $chartData = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $monthStart = $month->copy()->startOfMonth();
-            $monthEnd = $month->copy()->endOfMonth();
-
-            $mSavings = Transaction::where('type', 'transfer')
-                ->whereHas('toAccount', function ($q) {
-                    $q->where('account_type', 'savings')
-                      ->orWhere('is_savings', true);
-                })
-                ->whereBetween('date', [$monthStart, $monthEnd])
-                ->sum('amount');
-
-            $chartData[] = [
-                'label' => $month->format('M Y'),
-                'savings' => (float) $mSavings,
-            ];
-        }
+        // User Comparison Data
+        $userFilterStart = $params['user_start_date'] ?? $startDate;
+        $userFilterEnd = $params['user_end_date'] ?? $endDate;
+        $userComparison = $this->getUserComparison($userFilterStart, $userFilterEnd);
 
         return [
-            'accounts' => $accounts,
-            'totalCredits' => $credits,
-            'totalDebits' => $debits,
-            'netProfit' => $net,
-            'totalGeneral' => $totalGeneral,
-            'totalSavings' => $totalSavings,
-            'totalAssets' => $totalAssets,
-            'totalLiabilities' => $totalLiabilities,
-            'netWorth' => $netWorth,
-            'monthlySavings' => (float) $monthlySavings,
-            'chartData' => $chartData,
+            'metrics' => [
+                'totalCredits' => (float) $credits,
+                'totalDebits' => (float) $debits,
+                'netProfit' => (float) ($credits - $debits),
+                'totalGeneral' => (float) $totalGeneral,
+                'totalSavings' => (float) $totalSavings,
+                'totalAssets' => (float) $totalAssets,
+                'totalLiabilities' => (float) $totalLiabilities,
+                'netWorth' => (float) $netWorth,
+                'periodSavings' => (float) $periodSavings,
+            ],
+            'growthChart' => $growthData,
+            'expenseChart' => $expenseData,
+            'userChart' => $userComparison,
+            'accounts' => $accounts
         ];
+    }
+
+    /**
+     * Get monthly comparison data globally for the last 6 months.
+     * Savings is specifically calculated from transactions with the 'savings' tag.
+     */
+    public function getMonthlySavingsGrowth(int $months = 6): array
+    {
+        $data = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $start = $date->copy()->startOfMonth()->toDateString();
+            $end = $date->copy()->endOfMonth()->toDateString();
+
+            $income = Transaction::where('type', 'credit')
+                ->whereBetween('date', [$start, $end])
+                ->sum('amount');
+
+            $expense = Transaction::where('type', 'debit')
+                ->whereBetween('date', [$start, $end])
+                ->sum('amount');
+
+            // Savings is sum of transactions tagged with 'savings'
+            $savings = Transaction::where('tag', 'savings')
+                ->whereBetween('date', [$start, $end])
+                ->sum('amount');
+
+            $data[] = [
+                'label' => $date->format('M Y'),
+                'income' => (float) $income,
+                'expense' => (float) $expense,
+                'savings' => (float) $savings,
+            ];
+        }
+        return $data;
+    }
+
+    /**
+     * Get expense distribution globally by tag for a specific date range.
+     */
+    public function getExpenseDistribution(?string $startDate = null, ?string $endDate = null): array
+    {
+        $query = Transaction::where('type', 'debit')
+            ->leftJoin('tags', 'transactions.tag', '=', 'tags.name')
+            ->select('transactions.tag', DB::raw('SUM(transactions.amount) as total'), 'tags.color');
+
+        if ($startDate) {
+            $query->where('transactions.date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->where('transactions.date', '<=', $endDate);
+        }
+
+        return $query->groupBy('transactions.tag', 'tags.color')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'label' => $item->tag ?? 'Uncategorized',
+                    'amount' => (float) $item->total,
+                    'color' => $item->color ?? '#94a3b8'
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Compare savings across users for a given date range.
+     * Savings is specifically calculated from transactions with the 'savings' tag.
+     */
+    public function getUserComparison(?string $startDate = null, ?string $endDate = null): array
+    {
+        $users = User::all();
+        $comparison = [];
+
+        foreach ($users as $user) {
+            // Savings is sum of transactions tagged with 'savings'
+            $savings = Transaction::where('user_id', $user->id)
+                ->where('tag', 'savings')
+                ->when($startDate, fn($q) => $q->where('date', '>=', $startDate))
+                ->when($endDate, fn($q) => $q->where('date', '<=', $endDate))
+                ->sum('amount');
+
+            if ($savings > 0) {
+                $comparison[] = [
+                    'name' => $user->name,
+                    'savings' => (float) $savings,
+                ];
+            }
+        }
+
+        // Sort by savings descending
+        usort($comparison, fn($a, $b) => $b['savings'] <=> $a['savings']);
+
+        return $comparison;
     }
 }

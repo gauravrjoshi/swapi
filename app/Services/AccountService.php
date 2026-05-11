@@ -15,16 +15,20 @@ class AccountService
     }
 
     /**
-     * Get all accounts for a user.
+     * Get all accounts (globally or for a user).
      *
-     * @param int $userId
+     * @param int|null $userId
      * @return Collection
      */
-    public function getAccounts(int $userId): Collection
+    public function getAccounts(?int $userId = null): Collection
     {
-        // return Account::where('user_id', $userId)
-        return Account::orderBy('name', 'asc')
-            ->get();
+        $query = Account::orderBy('name', 'asc');
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+
+        return $query->get();
     }
 
     /**

@@ -9,15 +9,13 @@ use Illuminate\Database\Eloquent\Collection;
 class TagService
 {
     /**
-     * Get all tags for a user with optional search.
+     * Get all tags with optional search.
      *
-     * @param int $userId
      * @param string|null $search
      * @return Collection
      */
-    public function getTags(int $userId, ?string $search = null): Collection
+    public function getTags(?string $search = null): Collection
     {
-        // $query = Tag::where('user_id', $userId);
         $query = Tag::query();
 
         if ($search) {
@@ -28,15 +26,14 @@ class TagService
     }
 
     /**
-     * Get a specific tag by ID and user ID.
+     * Get a specific tag by ID.
      *
      * @param int $id
-     * @param int $userId
      * @return Tag
      */
-    public function getTagById(int $id, int $userId): Tag
+    public function getTagById(int $id): Tag
     {
-        return Tag::where('user_id', $userId)->findOrFail($id);
+        return Tag::findOrFail($id);
     }
 
     /**
@@ -55,13 +52,12 @@ class TagService
      * Update an existing tag.
      *
      * @param int $id
-     * @param int $userId
      * @param array $data
      * @return Tag
      */
-    public function updateTag(int $id, int $userId, array $data): Tag
+    public function updateTag(int $id, array $data): Tag
     {
-        $tag = $this->getTagById($id, $userId);
+        $tag = $this->getTagById($id);
         $tag->update($data);
         return $tag;
     }
@@ -70,12 +66,11 @@ class TagService
      * Delete a tag.
      *
      * @param int $id
-     * @param int $userId
      * @return bool|null
      */
-    public function deleteTag(int $id, int $userId): ?bool
+    public function deleteTag(int $id): ?bool
     {
-        $tag = $this->getTagById($id, $userId);
+        $tag = $this->getTagById($id);
         return $tag->delete();
     }
 }

@@ -333,7 +333,7 @@ new class extends Component {
 
                         <div class="grid grid-cols-12 gap-8 items-end mb-6">
                             <!-- Amount -->
-                            <div class="col-span-12 md:col-span-3 space-y-2.5">
+                            <div class="col-span-12 md:col-span-2 space-y-2.5">
                                 <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Amount <span
                                         class="text-rose-500">*</span></label>
                                 <div class="group relative">
@@ -452,12 +452,12 @@ new class extends Component {
                             </div>
 
                             <!-- Date -->
-                            <div class="col-span-12 md:col-span-2 space-y-2.5">
+                            <div class="col-span-12 md:col-span-3 space-y-2.5">
                                 <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Date <span
                                         class="text-rose-500">*</span></label>
                                 <div class="relative">
                                     <input type="date" wire:model="entries.{{ $index }}.date" required
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-black text-sm shadow-sm">
+                                        class="w-full px-4 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-black text-sm shadow-sm">
                                 </div>
                                 @error("entries.$index.date") <span
                                 class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror

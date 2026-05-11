@@ -41,7 +41,7 @@ new class extends Component {
 
     public function editTag($id, TagService $tagService)
     {
-        $tag = $tagService->getTagById($id, Auth::id());
+        $tag = $tagService->getTagById($id);
 
         $this->editingTagId = $id;
         $this->editName = $tag->name;
@@ -60,7 +60,7 @@ new class extends Component {
             'editColor' => 'required|string|max:7',
         ]);
 
-        $tagService->updateTag($this->editingTagId, Auth::id(), [
+        $tagService->updateTag($this->editingTagId, [
             'name' => $this->editName,
             'color' => $this->editColor,
         ]);
@@ -71,7 +71,7 @@ new class extends Component {
 
     public function deleteTag($id, TagService $tagService)
     {
-        $tagService->deleteTag($id, Auth::id());
+        $tagService->deleteTag($id);
         session()->flash('tag-message', 'Tag deleted successfully.');
     }
 
@@ -83,7 +83,7 @@ new class extends Component {
     public function with(TagService $tagService)
     {
         return [
-            'tags' => $tagService->getTags(Auth::id(), $this->search),
+            'tags' => $tagService->getTags($this->search),
         ];
     }
 };

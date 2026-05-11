@@ -25,7 +25,7 @@ class TagController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $tags = $this->tagService->getTags($request->user()->id, $request->search);
+        $tags = $this->tagService->getTags($request->search);
         return response()->json($tags);
     }
 
@@ -61,7 +61,7 @@ class TagController extends Controller
      */
     public function show(Request $request, int $id): JsonResponse
     {
-        $tag = $this->tagService->getTagById($id, $request->user()->id);
+        $tag = $this->tagService->getTagById($id);
         return response()->json($tag);
     }
 
@@ -84,7 +84,7 @@ class TagController extends Controller
             'color' => 'required|string|max:7',
         ]);
 
-        $tag = $this->tagService->updateTag($id, $request->user()->id, $validated);
+        $tag = $this->tagService->updateTag($id, $validated);
 
         return response()->json($tag);
     }
@@ -98,7 +98,7 @@ class TagController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $this->tagService->deleteTag($id, $request->user()->id);
+        $this->tagService->deleteTag($id);
         return response()->json(null, 204);
     }
 }
