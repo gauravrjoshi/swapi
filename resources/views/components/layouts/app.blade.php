@@ -14,21 +14,7 @@
         @livewireStyles
     </head>
     <body class="bg-slate-50 font-sans antialiased text-slate-900" x-data="{ showBalances: $persist(true), sidebarOpen: false }">
-        @if(session()->has('impersonator_id'))
-            <div class="bg-rose-600 text-white px-4 py-2 flex items-center justify-between relative z-[100] shadow-lg">
-                <div class="flex items-center gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <p class="text-sm font-black uppercase tracking-widest">
-                        Impersonating: <span class="underline decoration-2 underline-offset-4">{{ Auth::user()->name }}</span>
-                    </p>
-                </div>
-                <a href="{{ route('stop-impersonating') }}" class="bg-white text-rose-600 px-4 py-1 rounded-lg text-xs font-black uppercase hover:bg-rose-50 transition-all shadow-sm">
-                    Exit Impersonation
-                </a>
-            </div>
-        @endif
+
 
         <!-- Mobile Sidebar Backdrop -->
         <div x-show="sidebarOpen" 
@@ -111,6 +97,32 @@
                         </a>
                     @endif
                 </nav>
+
+                @if(session()->has('impersonator_id'))
+                    <div class="px-5 py-6 mt-auto border-t border-slate-50">
+                        <div class="bg-[#1e1b2e] border border-blue-400/30 rounded-2xl p-5 shadow-2xl relative overflow-hidden group">
+                            <!-- Premium Glow Effect -->
+                            <div class="absolute -top-10 -right-10 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full"></div>
+                            
+                            <div class="relative z-10">
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">You are logged in as</p>
+                                <h4 class="text-[17px] font-black text-white mb-5 leading-tight">{{ Auth::user()->name }}</h4>
+                                
+                                <a href="{{ route('stop-impersonating') }}" class="flex items-center gap-3 w-full bg-[#e11d48] hover:bg-[#be123c] text-white px-4 py-3.5 rounded-xl transition-all shadow-lg shadow-rose-950/40 group/btn">
+                                    <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-white rounded-full text-[#e11d48] transition-transform group-hover/btn:scale-110">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="flex flex-col items-start leading-[1.1]">
+                                        <span class="text-[13px] font-black uppercase tracking-tight">Leave</span>
+                                        <span class="text-[13px] font-black uppercase tracking-tight">impersonation</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </aside>
 
             <!-- Main Content Area -->
