@@ -67,7 +67,7 @@ class DashboardService
             $mSavings = Transaction::where('type', 'transfer')
                 ->whereHas('toAccount', function ($q) {
                     $q->where('account_type', 'savings')
-                      ->orWhere('is_savings', true);
+                        ->orWhere('is_savings', true);
                 })
                 ->whereBetween('date', [$monthStart, $monthEnd])
                 ->sum('amount');

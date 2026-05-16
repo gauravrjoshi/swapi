@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tag;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 
@@ -20,9 +22,22 @@ class TransactionController extends Controller
             'user_id' => $request->user_id,
             'from_date' => $request->from_date,
             'to_date' => $request->to_date,
+            'tag_id' => $request->tag_id,
         ]);
 
-        return response()->json($transactions);
+        $filters_value = [
+            'users' => User::select('id', 'name')->get(),
+            'tags' => Tag::select('name', 'name')->get(),
+            'types' => [
+                ['value' => 'credit', 'label' => 'Credit'],
+                ['value' => 'debit', 'label' => 'Debit'],
+                ['value' => 'transfer', 'label' => 'Transfer'],
+            ],
+        ];
+
+        return response()->json(array_merge($transactions->toArray(), [
+            'filters_value' => $filters_value
+        ]));
     }
 
     /**

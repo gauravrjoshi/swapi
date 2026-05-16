@@ -23,7 +23,7 @@ class AccountService
     public function getAccounts(int $userId): Collection
     {
         // return Account::where('user_id', $userId)
-        return Account::orderBy('name', 'asc')
+        return Account::with('user')->orderBy('name', 'asc')
             ->get();
     }
 

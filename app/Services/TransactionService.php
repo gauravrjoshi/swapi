@@ -252,9 +252,9 @@ class TransactionService
             });
         }
 
-        // if (!empty($filters['user_id'])) {
-        //     $query->where('user_id', $filters['user_id']);
-        // }
+        if (!empty($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
+        }
 
         if (!empty($filters['type'])) {
             $query->where('type', $filters['type']);
@@ -263,8 +263,8 @@ class TransactionService
         if (!empty($filters['account_id'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('account_id', $filters['account_id'])
-                  ->orWhere('from_account_id', $filters['account_id'])
-                  ->orWhere('to_account_id', $filters['account_id']);
+                    ->orWhere('from_account_id', $filters['account_id'])
+                    ->orWhere('to_account_id', $filters['account_id']);
             });
         }
 
@@ -275,6 +275,12 @@ class TransactionService
         if (!empty($filters['to_date'])) {
             $query->whereDate('date', '<=', $filters['to_date']);
         }
+
+        if (!empty($filters['tag_id'])) {
+            $query->where('tag', $filters['tag_id']);
+        }
+
+
 
         return $query->paginate($perPage);
     }

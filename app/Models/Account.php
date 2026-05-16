@@ -23,6 +23,13 @@ class Account extends Model
         'account_type',
     ];
 
+    protected $appends = ['user_name'];
+
+    public function getUserNameAttribute()
+    {
+        return $this->user?->name;
+    }
+
     public function isGeneral(): bool
     {
         return $this->account_type === 'general';
