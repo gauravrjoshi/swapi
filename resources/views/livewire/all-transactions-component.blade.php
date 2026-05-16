@@ -45,6 +45,12 @@ new class extends Component {
         $this->resetPage();
     }
 
+    public function resetFilters()
+    {
+        $this->reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search']);
+        $this->resetPage();
+    }
+
     public function confirmTransactionDelete($id)
     {
         $this->confirmingTransactionDeletionId = $id;
@@ -174,8 +180,7 @@ new class extends Component {
                 </select>
 
                 @if($fromDate || $toDate || $typeFilter || $userFilter || $accountFilter || $search)
-                    <button
-                        wire:click="$reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search'])"
+                    <button wire:click="resetFilters"
                         class="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all text-xs uppercase tracking-widest">
                         Reset
                     </button>
@@ -245,10 +250,11 @@ new class extends Component {
                                 </div>
                             </td>
                             <td class="px-6 py-5 text-right whitespace-nowrap">
-                                <span class="text-sm font-black 
-                                                                {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
-                                                                {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
-                                                                {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
+                                <span
+                                    class="text-sm font-black 
+                                                                    {{ $tx->type === 'credit' ? 'text-emerald-600' : '' }}
+                                                                    {{ $tx->type === 'debit' ? 'text-rose-600' : '' }}
+                                                                    {{ $tx->type === 'transfer' ? 'text-indigo-600' : '' }}">
                                     {{ $tx->type === 'debit' ? '-' : '' }}₹{{ number_format($tx->amount, 2) }}
                                 </span>
                             </td>
@@ -257,11 +263,13 @@ new class extends Component {
                                     <div class="flex flex-col items-end gap-1">
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-[9px] font-bold text-slate-400 uppercase">Src:</span>
-                                            <span class="text-xs font-black text-slate-600">₹{{ number_format($tx->from_account_running_balance ?? 0, 2) }}</span>
+                                            <span
+                                                class="text-xs font-black text-slate-600">₹{{ number_format($tx->from_account_running_balance ?? 0, 2) }}</span>
                                         </div>
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-[9px] font-bold text-slate-400 uppercase">Dst:</span>
-                                            <span class="text-xs font-black text-slate-600">₹{{ number_format($tx->to_account_running_balance ?? 0, 2) }}</span>
+                                            <span
+                                                class="text-xs font-black text-slate-600">₹{{ number_format($tx->to_account_running_balance ?? 0, 2) }}</span>
                                         </div>
                                     </div>
                                 @else
