@@ -32,7 +32,7 @@ class Transaction extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'amount' => 'decimal:2',
         'running_balance' => 'decimal:2',
         'from_account_running_balance' => 'decimal:2',
@@ -65,15 +65,16 @@ class Transaction extends Model
      */
     public function canBeManagedBy($user): bool
     {
-        if (!$user) return false;
+        if (!$user)
+            return false;
         $userId = is_object($user) ? $user->id : $user;
 
         if ($this->type === 'transfer') {
             // For transfers, if you own either account, you can manage it? 
             // The prompt says "latika can only add transactions entry related to it"
             // So if she owns the source or destination, she should be able to manage it.
-            return ($this->fromAccount && $this->fromAccount->user_id == $userId) || 
-                   ($this->toAccount && $this->toAccount->user_id == $userId);
+            return ($this->fromAccount && $this->fromAccount->user_id == $userId) ||
+                ($this->toAccount && $this->toAccount->user_id == $userId);
         }
 
         return $this->mainAccount && $this->mainAccount->user_id == $userId;

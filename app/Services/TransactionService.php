@@ -241,7 +241,9 @@ class TransactionService
     {
         $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
             // ->where('user_id', $userId)
-            ->latest();
+            ->orderBy('date', 'desc')
+            ->orderBy('time', 'desc')
+            ->orderBy('id', 'desc');
 
         if (!empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {

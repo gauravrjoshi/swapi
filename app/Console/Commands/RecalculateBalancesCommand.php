@@ -22,7 +22,7 @@ class RecalculateBalancesCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Recovers account initial balances and recalculates all transaction running balances from scratch.';
+    protected $description = 'Recalculates all account balances and transaction running balances based on existing initial balances.';
 
     /**
      * Execute the console command.
@@ -38,9 +38,9 @@ class RecalculateBalancesCommand extends Command
 
         try {
             DB::transaction(function () use ($isDryRun) {
-                // Step 1: Recover True Initial Balances
-                $this->info("Step 1: Recovering true initial balances for all accounts...");
-                $this->recoverInitialBalances();
+                // Step 1: Initialize current balances to initial balances
+                $this->info("Step 1: Initializing balances from existing initial_balance values...");
+                $this->initializeBalancesFromInitial();
 
                 // Step 2: Recalculate Running Balances chronologically
                 $this->info("Step 2: Recalculating chronological running balances...");
@@ -68,45 +68,16 @@ class RecalculateBalancesCommand extends Command
     }
 
     /**
-     * Calculates what the account's balance was before any transactions occurred,
-     * updates the `initial_balance` column, and resets the current `balance` 
+     * Resets the current `balance` of all accounts to their `initial_balance`
      * to prepare for chronological forward calculation.
      */
-    private function recoverInitialBalances()
+    private function initializeBalancesFromInitial()
     {
-        $accounts = DB::select('
-            SELECT 
-                a.id, a.name, a.balance as current_balance,
-                COALESCE(SUM(CASE WHEN t.type = "credit" AND t.account_id = a.id THEN t.amount ELSE 0 END), 0) as total_credits,
-                COALESCE(SUM(CASE WHEN t.type = "debit" AND t.account_id = a.id THEN t.amount ELSE 0 END), 0) as total_debits,
-                COALESCE(SUM(CASE WHEN t.to_account_id = a.id THEN t.amount ELSE 0 END), 0) as transfers_in,
-                COALESCE(SUM(CASE WHEN t.from_account_id = a.id THEN t.amount ELSE 0 END), 0) as transfers_out
-            FROM accounts a
-            LEFT JOIN transactions t ON (t.account_id = a.id OR t.from_account_id = a.id OR t.to_account_id = a.id)
-            GROUP BY a.id, a.name, a.balance
-        ');
+        DB::table('accounts')->update([
+            'balance' => DB::raw('initial_balance')
+        ]);
 
-        $bar = $this->output->createProgressBar(count($accounts));
-        $bar->start();
-
-        foreach ($accounts as $row) {
-            // Formula: Initial = Current - Credits + Debits - Transfers In + Transfers Out
-            $initial = $row->current_balance - $row->total_credits + $row->total_debits - $row->transfers_in + $row->transfers_out;
-            $initial = max(0, round($initial, 2));
-
-            // Reset both the initial_balance and the current balance to the starting point
-            DB::table('accounts')
-                ->where('id', $row->id)
-                ->update([
-                    'initial_balance' => $initial,
-                    'balance' => $initial // Temporarily set to initial, will be rebuilt in Step 2
-                ]);
-                
-            $bar->advance();
-        }
-
-        $bar->finish();
-        $this->newLine(2);
+        $this->info("All account current balances reset to their initial_balance.");
     }
 
     /**
@@ -115,10 +86,8 @@ class RecalculateBalancesCommand extends Command
      */
     private function recalculateRunningBalances()
     {
-        // Load all transactions ordered chronologically. 
-        // Note: For millions of rows, use chunkById or cursor(), but cursor is perfect here.
         $transactions = Transaction::orderBy('date', 'asc')->orderBy('time', 'asc')->orderBy('id', 'asc')->cursor();
-        
+
         $totalTransactions = Transaction::count();
         $bar = $this->output->createProgressBar($totalTransactions);
         $bar->start();
@@ -130,12 +99,12 @@ class RecalculateBalancesCommand extends Command
             if ($tx->type === 'transfer') {
                 $fromAccount = $accounts->get($tx->from_account_id);
                 $toAccount = $accounts->get($tx->to_account_id);
-                
+
                 if ($fromAccount) {
                     $fromAccount->balance -= $tx->amount;
                     $tx->from_account_running_balance = $fromAccount->balance;
                 }
-                
+
                 if ($toAccount) {
                     $toAccount->balance += $tx->amount;
                     $tx->to_account_running_balance = $toAccount->balance;
@@ -143,15 +112,15 @@ class RecalculateBalancesCommand extends Command
             } else {
                 $account = $accounts->get($tx->account_id);
                 if ($account) {
-                    if ($tx->type === 'credit') {
+                    if ($tx->type === 'credit' || $tx->type === 'income') {
                         $account->balance += $tx->amount;
-                    } else if ($tx->type === 'debit') {
+                    } else if ($tx->type === 'debit' || $tx->type === 'expense') {
                         $account->balance -= $tx->amount;
                     }
                     $tx->running_balance = $account->balance;
                 }
             }
-            
+
             // Save transaction silently (without updating updated_at)
             $tx->timestamps = false;
             $tx->save();
