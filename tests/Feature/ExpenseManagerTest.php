@@ -17,7 +17,7 @@ class ExpenseManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new TransactionService();
+        $this->service = app(TransactionService::class);
     }
 
     public function test_credit_increases_account_balance(): void

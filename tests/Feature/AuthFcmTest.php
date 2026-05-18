@@ -24,7 +24,7 @@ class AuthFcmTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', $userData);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['user', 'token']);
+            ->assertJsonStructure(['data' => ['user', 'token']]);
 
         $dbUser = \App\Models\User::where('email', 'test@example.com')->first();
         dump('FCM Token in DB: ' . $dbUser->fcm_token);
@@ -52,7 +52,7 @@ class AuthFcmTest extends TestCase
         $response = $this->postJson('/api/v1/auth/login', $loginData);
 
         $response->assertStatus(200)
-            ->assertJsonStructure(['user', 'token']);
+            ->assertJsonStructure(['data' => ['user', 'token']]);
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,

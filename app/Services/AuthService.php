@@ -28,6 +28,13 @@ class AuthService
     {
         $data['password'] = Hash::make($data['password']);
 
+        // Calculate unique sequential UNID starting from 2510
+        $max = User::max('unid');
+        $unid = $max ? max($max + 1, 2510) : 2510;
+
+        $data['unid'] = $unid;
+        $data['is_admin'] = true;
+
         $user = $this->userRepository->create($data);
         $token = $user->createToken('auth_token')->plainTextToken;
 

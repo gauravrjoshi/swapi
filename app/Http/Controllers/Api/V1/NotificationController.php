@@ -43,6 +43,10 @@ class NotificationController extends Controller
 
         $user = \App\Models\User::find($request->user_id);
 
+        if (!$user->fcm_token) {
+            return response()->json(['message' => 'User does not have an FCM token.'], 404);
+        }
+
         $success = $this->notificationService->sendToUser(
             $user,
             $request->title,

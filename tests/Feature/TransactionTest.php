@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,12 +29,18 @@ class TransactionTest extends TestCase
     public function test_can_create_transaction()
     {
         $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
 
         $data = [
             'date' => '2023-10-27',
             'time' => '10:00:00',
             'transaction_details' => 'Grocery',
-            'account' => 'SBI',
+            'account_id' => $account->id,
+            'type' => 'debit',
             'amount' => 500.00,
             'remarks' => 'Weekly grocery',
             'tag' => 'food,essential',
@@ -68,13 +75,22 @@ class TransactionTest extends TestCase
     public function test_can_update_transaction()
     {
         $user = User::factory()->create();
-        $transaction = Transaction::factory()->create(['user_id' => $user->id]);
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
+        $transaction = Transaction::factory()->create([
+            'user_id' => $user->id,
+            'account_id' => $account->id
+        ]);
 
         $data = [
             'date' => '2023-10-28',
             'time' => '11:00:00',
             'transaction_details' => 'Updated Details',
-            'account' => 'HDFC',
+            'account_id' => $account->id,
+            'type' => 'debit',
             'amount' => 1000.00,
             'tag' => 'updated',
             'comment' => 'Updated comment'

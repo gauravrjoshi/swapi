@@ -65,7 +65,7 @@ class TransactionService
             $transaction->save();
 
             $type = $data['type'];
-            $amount = $data['amount'];
+            $amount = (float) $data['amount'];
 
             switch ($type) {
                 case 'credit':
@@ -94,7 +94,7 @@ class TransactionService
      *
      * @param int|null $accountId
      * @param float $amount
-     * @return void
+     * @return float|null
      */
     protected function updateBalance(?int $accountId, $amount): ?float
     {
@@ -182,7 +182,7 @@ class TransactionService
 
             // 3. Apply new impact
             $type = $data['type'] ?? $transaction->type;
-            $amount = $data['amount'] ?? $transaction->amount;
+            $amount = (float) ($data['amount'] ?? $transaction->amount);
             $accountId = $data['account_id'] ?? $transaction->account_id;
             $fromAccountId = $data['from_account_id'] ?? $transaction->from_account_id;
             $toAccountId = $data['to_account_id'] ?? $transaction->to_account_id;
@@ -222,7 +222,7 @@ class TransactionService
     protected function reverseBalanceImpact(Transaction $transaction): void
     {
         $type = $transaction->type;
-        $amount = $transaction->amount;
+        $amount = (float) $transaction->amount;
 
         switch ($type) {
             case 'credit':
@@ -242,7 +242,6 @@ class TransactionService
     public function getTransactions(int $userId, array $filters = [], int $perPage = 10)
     {
         $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
-            // ->where('user_id', $userId)
             ->orderBy('date', 'desc')
             ->orderBy('time', 'desc')
             ->orderBy('id', 'desc');
