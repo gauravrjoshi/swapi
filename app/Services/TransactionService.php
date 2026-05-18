@@ -96,11 +96,13 @@ class TransactionService
      * @param float $amount
      * @return void
      */
-    protected function updateBalance(?int $accountId, float $amount): ?float
+    protected function updateBalance(?int $accountId, $amount): ?float
     {
-        if (!$accountId) {
+        if (!$accountId || $amount === null) {
             return null;
         }
+
+        $amount = (float) $amount;
 
         $account = Account::find($accountId);
         if ($account) {

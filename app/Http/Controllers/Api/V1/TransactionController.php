@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Tag;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class TransactionController extends Controller
 {
@@ -49,24 +51,56 @@ class TransactionController extends Controller
             'date' => 'required|date',
             'time' => 'required',
             'type' => 'required|in:credit,debit,transfer',
-            'transaction_details' => 'nullable|string',
-            'description' => 'nullable|string',
-            'other_transaction_details' => 'nullable|string',
-            'account' => 'required|string',
-            'account_id' => 'nullable|integer',
-            'from_account_id' => 'nullable|integer',
-            'to_account_id' => 'nullable|integer',
-            'amount' => 'required|numeric',
-            'ref_no' => 'nullable|string',
-            'order_id' => 'nullable|string',
-            'remarks' => 'nullable|string',
-            'tag' => 'nullable|string',
-            'comment' => 'nullable|string',
+            'transaction_details' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:255',
+            'other_transaction_details' => 'nullable|string|max:255',
+            'account_id' => 'nullable|exists:accounts,id',
+            'from_account_id' => 'nullable|exists:accounts,id',
+            'to_account_id' => 'nullable|exists:accounts,id|different:from_account_id',
+            'amount' => 'required|numeric|min:0.01',
+            'ref_no' => 'nullable|string|max:100',
+            'order_id' => 'nullable|string|max:100',
+            'remarks' => 'nullable|string|max:255',
+            'tag' => 'nullable|string|max:50',
+            'comment' => 'nullable|string|max:255',
         ]);
+
+        $user = $request->user();
+
+        // Custom validation logic per entry
+        if ($validated['type'] === 'transfer') {
+            if (empty($validated['from_account_id'])) {
+                throw ValidationException::withMessages(['from_account_id' => 'The source account is required for transfers.']);
+            }
+            if (empty($validated['to_account_id'])) {
+                throw ValidationException::withMessages(['to_account_id' => 'The destination account is required for transfers.']);
+            }
+
+            $fromAccount = Account::find($validated['from_account_id']);
+            $toAccount = Account::find($validated['to_account_id']);
+
+            if ($fromAccount->user_id != $user->id && $toAccount->user_id !== $user->id) {
+                throw ValidationException::withMessages(['from_account_id' => 'You must own at least one of the accounts in a transfer.']);
+            }
+            $validated['account_id'] = null;
+        } else {
+            if (empty($validated['account_id'])) {
+                throw ValidationException::withMessages(['account_id' => 'The account is required.']);
+            }
+            $account = Account::find($validated['account_id']);
+            if ($account->user_id != $user->id) {
+                throw ValidationException::withMessages(['account_id' => 'You can only add transactions to your own accounts.']);
+            }
+            $validated['from_account_id'] = null;
+            $validated['to_account_id'] = null;
+        }
 
         if (empty($validated['transaction_details'])) {
             $validated['transaction_details'] = $validated['description'] ?? $validated['remarks'] ?? 'Transaction';
         }
+
+        // Add user_id to validated data
+        $validated['user_id'] = $user->id;
 
         $transaction = $transactionService->createTransaction($validated);
 
@@ -89,29 +123,58 @@ class TransactionController extends Controller
      */
     public function update(Request $request, Transaction $transaction, TransactionService $transactionService)
     {
-        /* if ((int) $transaction->user_id !== (int) $request->user()->id) {
+        if ((int) $transaction->user_id !== (int) $request->user()->id) {
             return response()->json(['message' => 'You do not have permission to update this transaction'], 403);
-        } */
+        }
 
         try {
             $validated = $request->validate([
                 'date' => 'required|date',
                 'time' => 'required',
                 'type' => 'required|in:credit,debit,transfer',
-                'transaction_details' => 'nullable|string',
-                'description' => 'nullable|string',
-                'other_transaction_details' => 'nullable|string',
-                'account' => 'required|string',
-                'account_id' => 'nullable|integer',
-                'from_account_id' => 'nullable|integer',
-                'to_account_id' => 'nullable|integer',
-                'amount' => 'required|numeric',
-                'ref_no' => 'nullable|string',
-                'order_id' => 'nullable|string',
-                'remarks' => 'nullable|string',
-                'tag' => 'nullable|string',
-                'comment' => 'nullable|string',
+                'transaction_details' => 'nullable|string|max:255',
+                'description' => 'nullable|string|max:255',
+                'other_transaction_details' => 'nullable|string|max:255',
+                'account_id' => 'nullable|exists:accounts,id',
+                'from_account_id' => 'nullable|exists:accounts,id',
+                'to_account_id' => 'nullable|exists:accounts,id|different:from_account_id',
+                'amount' => 'required|numeric|min:0.01',
+                'ref_no' => 'nullable|string|max:100',
+                'order_id' => 'nullable|string|max:100',
+                'remarks' => 'nullable|string|max:255',
+                'tag' => 'nullable|string|max:50',
+                'comment' => 'nullable|string|max:255',
             ]);
+
+            $user = $request->user();
+
+            // Custom validation logic
+            if ($validated['type'] === 'transfer') {
+                if (empty($validated['from_account_id'])) {
+                    throw ValidationException::withMessages(['from_account_id' => 'The source account is required for transfers.']);
+                }
+                if (empty($validated['to_account_id'])) {
+                    throw ValidationException::withMessages(['to_account_id' => 'The destination account is required for transfers.']);
+                }
+
+                $fromAccount = Account::find($validated['from_account_id']);
+                $toAccount = Account::find($validated['to_account_id']);
+
+                if ($fromAccount->user_id != $user->id && $toAccount->user_id !== $user->id) {
+                    throw ValidationException::withMessages(['from_account_id' => 'You must own at least one of the accounts in a transfer.']);
+                }
+                $validated['account_id'] = null;
+            } else {
+                if (empty($validated['account_id'])) {
+                    throw ValidationException::withMessages(['account_id' => 'The account is required.']);
+                }
+                $account = Account::find($validated['account_id']);
+                if ($account->user_id != $user->id) {
+                    throw ValidationException::withMessages(['account_id' => 'You can only add transactions to your own accounts.']);
+                }
+                $validated['from_account_id'] = null;
+                $validated['to_account_id'] = null;
+            }
 
             if (empty($validated['transaction_details'])) {
                 $validated['transaction_details'] = $validated['description'] ?? $validated['remarks'] ?? $transaction->transaction_details;
@@ -120,7 +183,7 @@ class TransactionController extends Controller
             $updatedTransaction = $transactionService->updateTransaction($transaction, $validated);
 
             return response()->json($updatedTransaction);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Update failed', [
