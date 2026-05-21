@@ -148,4 +148,135 @@ class TransactionTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_transaction_tag_and_tag_id_synchronization()
+    {
+        $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
+
+        Sanctum::actingAs($user, ['*']);
+
+        // Case 1: Create transaction with default system tag_id = -1
+        $data1 = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Food dinner',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 100.00,
+            'tag_id' => -1,
+        ];
+        $response1 = $this->postJson('/api/v1/transactions', $data1);
+        $response1->assertStatus(201)
+            ->assertJsonFragment(['tag' => 'Food & Drinks', 'tag_id' => -1]);
+        
+        $this->assertDatabaseHas('transactions', [
+            'transaction_details' => 'Food dinner',
+            'tag' => 'Food & Drinks',
+            'tag_id' => -1
+        ]);
+
+        // Case 2: Create transaction with tag string "Shopping"
+        $data2 = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Clothes shopping',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 150.00,
+            'tag' => 'Shopping',
+        ];
+        $response2 = $this->postJson('/api/v1/transactions', $data2);
+        $response2->assertStatus(201)
+            ->assertJsonFragment(['tag' => 'Shopping', 'tag_id' => -2]);
+        
+        $this->assertDatabaseHas('transactions', [
+            'transaction_details' => 'Clothes shopping',
+            'tag' => 'Shopping',
+            'tag_id' => -2
+        ]);
+
+        // Case 3: Create custom database tag
+        $customTag = \App\Models\Tag::create([
+            'user_id' => $user->id,
+            'name' => 'Utilities',
+            'color' => '#ffffff'
+        ]);
+
+        // Create transaction with custom tag_id
+        $data3 = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Electricity bill',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 200.00,
+            'tag_id' => $customTag->id,
+        ];
+        $response3 = $this->postJson('/api/v1/transactions', $data3);
+        $response3->assertStatus(201)
+            ->assertJsonFragment(['tag' => 'Utilities', 'tag_id' => $customTag->id]);
+
+        $this->assertDatabaseHas('transactions', [
+            'transaction_details' => 'Electricity bill',
+            'tag' => 'Utilities',
+            'tag_id' => $customTag->id
+        ]);
+
+        // Create transaction with custom tag name string
+        $data4 = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Water bill',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 50.00,
+            'tag' => 'Utilities',
+        ];
+        $response4 = $this->postJson('/api/v1/transactions', $data4);
+        $response4->assertStatus(201)
+            ->assertJsonFragment(['tag' => 'Utilities', 'tag_id' => $customTag->id]);
+
+        $this->assertDatabaseHas('transactions', [
+            'transaction_details' => 'Water bill',
+            'tag' => 'Utilities',
+            'tag_id' => $customTag->id
+        ]);
+
+        // Case 4: Update transaction tag_id
+        $tx = Transaction::where('transaction_details', 'Food dinner')->first();
+        $updateData = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Food dinner updated',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 100.00,
+            'tag_id' => -5, // Entertainment
+        ];
+        $responseUpdate = $this->putJson("/api/v1/transactions/{$tx->id}", $updateData);
+        $responseUpdate->assertStatus(200)
+            ->assertJsonFragment(['tag' => 'Entertainment', 'tag_id' => -5]);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $tx->id,
+            'tag' => 'Entertainment',
+            'tag_id' => -5
+        ]);
+
+        // Case 5: Filter transactions by numeric tag_id
+        $filterResponse = $this->getJson('/api/v1/transactions?tag_id=-5');
+        $filterResponse->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonFragment(['transaction_details' => 'Food dinner updated']);
+
+        // Case 6: Filter transactions by string tag
+        $filterResponseStr = $this->getJson('/api/v1/transactions?tag_id=Utilities');
+        $filterResponseStr->assertStatus(200)
+            ->assertJsonCount(2, 'data');
+    }
 }

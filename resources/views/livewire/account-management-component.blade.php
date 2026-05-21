@@ -2,6 +2,7 @@
 
 use Livewire\Volt\Component;
 use App\Models\Account;
+use App\Services\AccountService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
@@ -56,7 +57,7 @@ new class extends Component
         $this->showModal = true;
     }
 
-    public function save()
+    public function save(AccountService $accountService)
     {
         if ($this->isEdit) {
             $this->validate([
@@ -69,11 +70,15 @@ new class extends Component
                 'ifsc_code' => 'nullable|string|max:255',
                 'branch_address' => 'nullable|string|max:500',
             ]);
-            Account::findOrFail($this->formAccountId)->update([
-                'name' => $this->name, 'balance' => $this->balance,
-                'account_type' => $this->account_type, 'is_savings' => $this->account_type === 'savings',
-                'bank_name' => $this->bank_name, 'account_holder_name' => $this->account_holder_name,
-                'account_number' => $this->account_number, 'ifsc_code' => $this->ifsc_code,
+            $account = Account::findOrFail($this->formAccountId);
+            $accountService->updateAccount($account, [
+                'name' => $this->name,
+                'balance' => $this->balance,
+                'account_type' => $this->account_type,
+                'bank_name' => $this->bank_name,
+                'account_holder_name' => $this->account_holder_name,
+                'account_number' => $this->account_number,
+                'ifsc_code' => $this->ifsc_code,
                 'branch_address' => $this->branch_address,
             ]);
             session()->flash('account-message', 'Account updated successfully.');
@@ -88,13 +93,16 @@ new class extends Component
                 'ifsc_code' => 'nullable|string|max:255',
                 'branch_address' => 'nullable|string|max:500',
             ]);
-            Account::create([
-                'name' => $this->name, 'balance' => $this->initial_balance,
+            $accountService->createAccount([
+                'name' => $this->name,
                 'initial_balance' => $this->initial_balance,
-                'account_type' => $this->account_type, 'is_savings' => $this->account_type === 'savings',
-                'bank_name' => $this->bank_name, 'account_holder_name' => $this->account_holder_name,
-                'account_number' => $this->account_number, 'ifsc_code' => $this->ifsc_code,
-                'branch_address' => $this->branch_address, 'user_id' => Auth::id(),
+                'account_type' => $this->account_type,
+                'bank_name' => $this->bank_name,
+                'account_holder_name' => $this->account_holder_name,
+                'account_number' => $this->account_number,
+                'ifsc_code' => $this->ifsc_code,
+                'branch_address' => $this->branch_address,
+                'user_id' => Auth::id(),
             ]);
             session()->flash('account-message', 'Account created successfully.');
         }
@@ -108,10 +116,11 @@ new class extends Component
 
     public function confirmDelete($id) { $this->confirmingDeletionId = $id; }
 
-    public function deleteAccount()
+    public function deleteAccount(AccountService $accountService)
     {
         try {
-            Account::findOrFail($this->confirmingDeletionId)->delete();
+            $account = Account::findOrFail($this->confirmingDeletionId);
+            $accountService->deleteAccount($account);
             $this->confirmingDeletionId = null;
             session()->flash('account-message', 'Account deleted successfully.');
         } catch (\Exception $e) {
@@ -123,13 +132,10 @@ new class extends Component
     public function shareAccount($id) { $this->sharingAccountId = $id; }
     public function closeShare() { $this->sharingAccountId = null; }
 
-    public function with()
+    public function with(AccountService $accountService)
     {
-        $query = Account::with('user');
-        if (!Auth::user()->is_admin) {
-            $query->where('user_id', Auth::id());
-        }
-        return ['accounts' => $query->get()];
+        $accounts = $accountService->getAccounts(Auth::id());
+        return ['accounts' => $accounts];
     }
 };
 ?>

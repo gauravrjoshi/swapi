@@ -280,7 +280,12 @@ class TransactionService
         }
 
         if (!empty($filters['tag_id'])) {
-            $query->where('tag', $filters['tag_id']);
+            $tagId = $filters['tag_id'];
+            if (is_numeric($tagId)) {
+                $query->where('tag_id', $tagId);
+            } else {
+                $query->where('tag', $tagId);
+            }
         }
 
 

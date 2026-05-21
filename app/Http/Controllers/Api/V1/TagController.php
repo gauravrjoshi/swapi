@@ -37,17 +37,14 @@ class TagController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('tags', 'name'),
-            ],
-            'color' => 'required|string|max:7',
+            'name' => $this->tagService->getNameRules($user),
+            'color' => $this->tagService->getColorRules(),
         ]);
 
-        $tag = $this->tagService->createTag(array_merge($validated, ['user_id' => $request->user()->id]));
+        $tag = $this->tagService->createTag(array_merge($validated, ['user_id' => $user->id]));
 
         return response()->json($tag, 201);
     }
@@ -74,17 +71,14 @@ class TagController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('tags', 'name')->ignore($id),
-            ],
-            'color' => 'required|string|max:7',
+            'name' => $this->tagService->getNameRules($user, $id),
+            'color' => $this->tagService->getColorRules(),
         ]);
 
-        $tag = $this->tagService->updateTag($id, $request->user()->id, $validated);
+        $tag = $this->tagService->updateTag($id, $user->id, $validated);
 
         return response()->json($tag);
     }

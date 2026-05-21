@@ -37,6 +37,25 @@ class AccountService
      */
     public function createAccount(array $data): Account
     {
+        $data['user_id'] = $data['user_id'] ?? auth()->id();
+
+        if (isset($data['account_type'])) {
+            $data['is_savings'] = ($data['account_type'] === 'savings');
+        } elseif (isset($data['is_savings'])) {
+            $data['account_type'] = $data['is_savings'] ? 'savings' : 'general';
+        } else {
+            $data['account_type'] = 'general';
+            $data['is_savings'] = false;
+        }
+
+        if (!isset($data['balance']) && isset($data['initial_balance'])) {
+            $data['balance'] = $data['initial_balance'];
+        }
+
+        if (isset($data['balance']) && !isset($data['initial_balance'])) {
+            $data['initial_balance'] = $data['balance'];
+        }
+
         $account = Account::create($data);
         $this->sendAccountNotification($account, 'created');
         return $account;
@@ -51,6 +70,12 @@ class AccountService
      */
     public function updateAccount(Account $account, array $data): Account
     {
+        if (isset($data['account_type'])) {
+            $data['is_savings'] = ($data['account_type'] === 'savings');
+        } elseif (isset($data['is_savings'])) {
+            $data['account_type'] = $data['is_savings'] ? 'savings' : 'general';
+        }
+
         $account->update($data);
         $this->sendAccountNotification($account, 'updated');
         return $account;

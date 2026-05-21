@@ -18,20 +18,17 @@ new class extends Component {
 
     public function createTag(TagService $tagService)
     {
+        $user = Auth::user();
+
         $this->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('tags', 'name'),
-            ],
-            'color' => 'required|string|max:7',
+            'name' => $tagService->getNameRules($user),
+            'color' => $tagService->getColorRules(),
         ]);
 
         $tagService->createTag([
             'name' => $this->name,
             'color' => $this->color,
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
         ]);
 
         $this->reset(['name']);
@@ -50,17 +47,14 @@ new class extends Component {
 
     public function updateTag(TagService $tagService)
     {
+        $user = Auth::user();
+
         $this->validate([
-            'editName' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('tags', 'name')->ignore($this->editingTagId),
-            ],
-            'editColor' => 'required|string|max:7',
+            'editName' => $tagService->getNameRules($user, $this->editingTagId),
+            'editColor' => $tagService->getColorRules(),
         ]);
 
-        $tagService->updateTag($this->editingTagId, Auth::id(), [
+        $tagService->updateTag($this->editingTagId, $user->id, [
             'name' => $this->editName,
             'color' => $this->editColor,
         ]);
@@ -200,29 +194,38 @@ new class extends Component {
                                 </div>
                                 <span style="font-size: 14px; font-weight: 600; color: #1e293b;">{{ $tag->name }}</span>
 
-                                <div style="display: flex; gap: 4px; margin-left: 4px;">
-                                    <button wire:click="editTag({{ $tag->id }})"
-                                        style="padding: 4px; color: #94a3b8; background: none; border: none; cursor: pointer; border-radius: 6px; transition: all 0.2s;"
-                                        onmouseover="this.style.color='#6366f1'; this.style.backgroundColor='#eef2ff'"
-                                        onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 14px; width: 14px;"
-                                            viewBox="0 0 20 20" fill="currentColor">
-                                            <path
-                                                d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                @if($tag->id >= 0)
+                                    <div style="display: flex; gap: 4px; margin-left: 4px;">
+                                        <button wire:click="editTag({{ $tag->id }})"
+                                            style="padding: 4px; color: #94a3b8; background: none; border: none; cursor: pointer; border-radius: 6px; transition: all 0.2s;"
+                                            onmouseover="this.style.color='#6366f1'; this.style.backgroundColor='#eef2ff'"
+                                            onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" style="height: 14px; width: 14px;"
+                                                viewBox="0 0 20 20" fill="currentColor">
+                                                <path
+                                                    d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                            </svg>
+                                        </button>
+                                        <button wire:click="deleteTag({{ $tag->id }})" wire:confirm="Delete this tag?"
+                                            style="padding: 4px; color: #94a3b8; background: none; border: none; cursor: pointer; border-radius: 6px; transition: all 0.2s;"
+                                            onmouseover="this.style.color='#e11d48'; this.style.backgroundColor='#fff1f2'"
+                                            onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent'">
+                                            <svg xmlns="http://www.w3.org/2000/svg" style="height: 14px; width: 14px;"
+                                                viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                @else
+                                    <span style="font-size: 10px; font-weight: 700; color: #64748b; background-color: #f1f5f9; padding: 2px 8px; border-radius: 8px; text-transform: uppercase; margin-left: 6px; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 4px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 10px; width: 10px;" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
                                         </svg>
-                                    </button>
-                                    <button wire:click="deleteTag({{ $tag->id }})" wire:confirm="Delete this tag?"
-                                        style="padding: 4px; color: #94a3b8; background: none; border: none; cursor: pointer; border-radius: 6px; transition: all 0.2s;"
-                                        onmouseover="this.style.color='#e11d48'; this.style.backgroundColor='#fff1f2'"
-                                        onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 14px; width: 14px;"
-                                            viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd"
-                                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                                clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                </div>
+                                        System
+                                    </span>
+                                @endif
                             </div>
                         @endforeach
                     </div>

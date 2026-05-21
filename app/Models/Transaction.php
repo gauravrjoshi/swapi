@@ -20,6 +20,7 @@ class Transaction extends Model
         'order_id',
         'remarks',
         'tag',
+        'tag_id',
         'comment',
         'user_id',
         'type',
@@ -40,9 +41,74 @@ class Transaction extends Model
         'to_account_running_balance' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'resolved_tag',
+    ];
+
+    protected static function booted()
+    {
+        static::saving(function ($transaction) {
+            // Only synchronize if tag_id or tag has changed or if it is a new record.
+            if ($transaction->isDirty('tag_id') || $transaction->isDirty('tag') || !$transaction->exists) {
+                $tagService = app(\App\Services\TagService::class);
+                $userId = $transaction->user_id;
+
+                if (!$userId) {
+                    if ($transaction->account_id) {
+                        $userId = \App\Models\Account::find($transaction->account_id)?->user_id;
+                    } elseif ($transaction->from_account_id) {
+                        $userId = \App\Models\Account::find($transaction->from_account_id)?->user_id;
+                    }
+                }
+
+                if ($userId) {
+                    if ($transaction->isDirty('tag_id')) {
+                        if ($transaction->tag_id !== null) {
+                            $tag = $tagService->resolveTag($userId, $transaction->tag_id);
+                            $transaction->tag = $tag?->name;
+                        } else {
+                            $transaction->tag = null;
+                        }
+                    } elseif ($transaction->isDirty('tag') || (!$transaction->exists && $transaction->tag_id === null)) {
+                        if ($transaction->tag !== null && trim($transaction->tag) !== '') {
+                            $tag = $tagService->resolveTag($userId, null, $transaction->tag);
+                            $transaction->tag_id = $tag?->id;
+                        } else {
+                            $transaction->tag_id = null;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function associatedTag()
+    {
+        return $this->belongsTo(Tag::class, 'tag_id');
+    }
+
+    public function getResolvedTagAttribute()
+    {
+        if ($this->tag_id === null) {
+            return null;
+        }
+        $userId = $this->user_id;
+        if (!$userId) {
+            if ($this->account_id) {
+                $userId = \App\Models\Account::find($this->account_id)?->user_id;
+            } elseif ($this->from_account_id) {
+                $userId = \App\Models\Account::find($this->from_account_id)?->user_id;
+            }
+        }
+        if (!$userId) {
+            return null;
+        }
+        return app(\App\Services\TagService::class)->resolveTag($userId, $this->tag_id);
     }
 
     public function mainAccount()

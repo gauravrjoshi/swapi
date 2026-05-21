@@ -16,6 +16,14 @@ Route::prefix('v1')->group(function () {
         Route::get('me', [UserController::class, 'me']);
         Route::get('dashboard', [\App\Http\Controllers\Api\V1\DashboardController::class, 'index']);
 
+        // Admin Routes
+        Route::middleware('admin')->prefix('admin')->group(function () {
+            Route::get('members', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'index']);
+            Route::post('members', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'store']);
+            Route::put('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'update']);
+            Route::delete('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'destroy']);
+        });
+
         // Task Routes
         Route::apiResource('tasks', \App\Http\Controllers\Api\V1\TaskController::class);
 

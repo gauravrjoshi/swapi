@@ -7,10 +7,12 @@ use App\Models\Transaction;
 class DashboardService
 {
     protected $accountService;
+    protected $tagService;
 
-    public function __construct(AccountService $accountService)
+    public function __construct(AccountService $accountService, TagService $tagService)
     {
         $this->accountService = $accountService;
+        $this->tagService = $tagService;
     }
 
     /**
@@ -72,11 +74,68 @@ class DashboardService
                 ->whereBetween('date', [$monthStart, $monthEnd])
                 ->sum('amount');
 
+            $mIncome = Transaction::where('type', 'credit')
+                ->whereBetween('date', [$monthStart, $monthEnd])
+                ->sum('amount');
+
+            $mExpense = Transaction::where('type', 'debit')
+                ->whereBetween('date', [$monthStart, $monthEnd])
+                ->sum('amount');
+
             $chartData[] = [
                 'label' => $month->format('M Y'),
+                'income' => (float) $mIncome,
+                'expense' => (float) $mExpense,
                 'savings' => (float) $mSavings,
             ];
         }
+
+        // Group period debits by category/tag to build the expense pie chart data
+        $debitsPeriodQuery = Transaction::where('type', 'debit');
+        if ($startDate) {
+            $debitsPeriodQuery->where('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $debitsPeriodQuery->where('date', '<=', $endDate);
+        }
+        $debitsPeriod = $debitsPeriodQuery->get();
+
+        $tags = $this->tagService->getTags($userId);
+        $tagColorMap = $tags->pluck('color', 'name')->toArray();
+        $groupedDebits = $debitsPeriod->groupBy('tag');
+
+        $expenseChartMap = [];
+        foreach ($tags as $tag) {
+            $name = $tag->name;
+            $color = $tag->color;
+            $amount = 0.0;
+            if ($groupedDebits->has($name)) {
+                $amount = (float) $groupedDebits->get($name)->sum('amount');
+            }
+            $expenseChartMap[$name] = [
+                'label' => $name,
+                'amount' => $amount,
+                'color' => $color,
+            ];
+        }
+
+        // Also handle "Uncategorized" if any transactions have empty/null/unmapped tags
+        foreach ($groupedDebits as $tagName => $transactions) {
+            $name = $tagName ?: 'Uncategorized';
+            if (!isset($expenseChartMap[$name])) {
+                $color = $tagColorMap[$name] ?? '#94a3b8';
+                $expenseChartMap[$name] = [
+                    'label' => $name,
+                    'amount' => (float) $transactions->sum('amount'),
+                    'color' => $color,
+                ];
+            }
+        }
+
+        $expenseChart = collect($expenseChartMap)
+            ->sortBy(fn($item) => [-$item['amount'], $item['label']])
+            ->values()
+            ->toArray();
 
         return [
             'accounts' => $accounts,
@@ -90,6 +149,7 @@ class DashboardService
             'netWorth' => $netWorth,
             'monthlySavings' => (float) $monthlySavings,
             'chartData' => $chartData,
+            'expenseChart' => $expenseChart,
         ];
     }
 }

@@ -34,6 +34,12 @@ class AccountController extends Controller
             'name' => 'required|string|max:255',
             'balance' => 'required|numeric',
             'is_savings' => 'boolean',
+            'bank_name' => 'nullable|string|max:255',
+            'account_holder_name' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'branch_address' => 'nullable|string|max:1000',
+            'account_type' => 'nullable|string|in:savings,general,liability',
         ]);
 
         $validated['user_id'] = $request->user()->id;
@@ -69,6 +75,12 @@ class AccountController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'balance' => 'sometimes|required|numeric',
             'is_savings' => 'boolean',
+            'bank_name' => 'nullable|string|max:255',
+            'account_holder_name' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'branch_address' => 'nullable|string|max:1000',
+            'account_type' => 'nullable|string|in:savings,general,liability',
         ]);
 
         $account = $this->accountService->updateAccount($account, $validated);

@@ -2,6 +2,7 @@
 
 use Livewire\Volt\Component;
 use App\Models\Account;
+use App\Services\AccountService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
@@ -41,14 +42,20 @@ new class extends Component
         }
     }
 
-    public function save()
+    public function save(AccountService $accountService)
     {
+        $user = Auth::user();
+
         if ($this->isEdit) {
             $this->validate([
                 'name' => [
                     'required', 'string', 'max:255',
                     Rule::unique('accounts', 'name')
-                        ->where(fn ($q) => $q->where('user_id', Auth::id()))
+                        ->where(fn ($q) => $q->whereIn('user_id', function ($query) use ($user) {
+                            $query->select('id')
+                                ->from('users')
+                                ->where('unid', $user->unid);
+                        }))
                         ->ignore($this->accountId),
                 ],
                 'balance'      => 'required|numeric',
@@ -60,11 +67,11 @@ new class extends Component
                 'branch_address'      => 'nullable|string|max:500',
             ]);
 
-            Account::findOrFail($this->accountId)->update([
+            $account = Account::findOrFail($this->accountId);
+            $accountService->updateAccount($account, [
                 'name'          => $this->name,
                 'balance'       => $this->balance,
                 'account_type'  => $this->account_type,
-                'is_savings'    => $this->account_type === 'savings',
                 'bank_name'     => $this->bank_name,
                 'account_holder_name' => $this->account_holder_name,
                 'account_number'      => $this->account_number,
@@ -77,7 +84,12 @@ new class extends Component
             $this->validate([
                 'name' => [
                     'required', 'string', 'max:255',
-                    Rule::unique('accounts', 'name')->where(fn ($q) => $q->where('user_id', Auth::id())),
+                    Rule::unique('accounts', 'name')
+                        ->where(fn ($q) => $q->whereIn('user_id', function ($query) use ($user) {
+                            $query->select('id')
+                                ->from('users')
+                                ->where('unid', $user->unid);
+                        })),
                 ],
                 'initial_balance' => 'required|numeric',
                 'account_type'    => 'required|in:general,savings,liability',
@@ -88,18 +100,17 @@ new class extends Component
                 'branch_address'      => 'nullable|string|max:500',
             ]);
 
-            Account::create([
+            $accountService->createAccount([
                 'name'          => $this->name,
                 'balance'       => $this->initial_balance,
                 'initial_balance' => $this->initial_balance,
                 'account_type'  => $this->account_type,
-                'is_savings'    => $this->account_type === 'savings',
                 'bank_name'     => $this->bank_name,
                 'account_holder_name' => $this->account_holder_name,
                 'account_number'      => $this->account_number,
                 'ifsc_code'           => $this->ifsc_code,
                 'branch_address'      => $this->branch_address,
-                'user_id'       => Auth::id(),
+                'user_id'       => $user->id,
             ]);
 
             session()->flash('account-message', 'Account created successfully.');

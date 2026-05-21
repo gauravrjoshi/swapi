@@ -62,6 +62,7 @@ class TransactionController extends Controller
             'order_id' => 'nullable|string|max:100',
             'remarks' => 'nullable|string|max:255',
             'tag' => 'nullable|string|max:50',
+            'tag_id' => 'nullable|integer',
             'comment' => 'nullable|string|max:255',
         ]);
 
@@ -143,6 +144,7 @@ class TransactionController extends Controller
                 'order_id' => 'nullable|string|max:100',
                 'remarks' => 'nullable|string|max:255',
                 'tag' => 'nullable|string|max:50',
+                'tag_id' => 'nullable|integer',
                 'comment' => 'nullable|string|max:255',
             ]);
 
