@@ -39,28 +39,13 @@ class MemberController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'unid' => [
-                'nullable',
-                'integer',
-                function ($attribute, $value, $fail) {
-                    // Check globally if the UNID exists, bypassing the current user's UNID query scope
-                    $exists = User::withoutGlobalScope('unid')->where('unid', $value)->exists();
-                    if (!$exists) {
-                        $fail('The selected UNID does not exist in the system.');
-                    }
-                }
-            ]
         ]);
 
         $validated['password'] = bcrypt($validated['password']);
         
-        // Force non-admin status
+        // Force non-admin status and always inherit the Admin's UNID
         $validated['is_admin'] = false;
-
-        // Default to the creator admin's UNID if not explicitly provided
-        if (!isset($validated['unid']) || is_null($validated['unid'])) {
-            $validated['unid'] = $request->user()->unid;
-        }
+        $validated['unid'] = $request->user()->unid;
 
         $user = User::create($validated);
 
@@ -83,27 +68,12 @@ class MemberController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'password' => ['nullable', 'string', 'min:8'],
-            'unid' => [
-                'nullable',
-                'integer',
-                function ($attribute, $value, $fail) {
-                    $exists = User::withoutGlobalScope('unid')->where('unid', $value)->exists();
-                    if (!$exists) {
-                        $fail('The selected UNID does not exist in the system.');
-                    }
-                }
-            ]
         ]);
 
         if (isset($validated['password']) && !empty($validated['password'])) {
             $validated['password'] = bcrypt($validated['password']);
         } else {
             unset($validated['password']);
-        }
-
-        // If 'unid' is not provided in the request payload, keep the existing value
-        if (!array_key_exists('unid', $validated)) {
-            unset($validated['unid']);
         }
 
         $user->update($validated);

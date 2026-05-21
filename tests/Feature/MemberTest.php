@@ -83,7 +83,7 @@ class MemberTest extends TestCase
             ->assertJsonFragment([
                 'email'    => 'member@example.com',
                 'is_admin' => false,
-                'unid'     => 2510, // should default to admin's UNID
+                'unid'     => 2510, // inherits admin's UNID
             ]);
 
         $this->assertDatabaseHas('users', [
@@ -93,44 +93,20 @@ class MemberTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_create_member_with_custom_existing_unid()
-    {
-        $admin    = User::factory()->create(['unid' => 2510, 'is_admin' => true]);
-        // User existing in unid 2511
-        User::factory()->create(['unid' => 2511]);
-
-        Sanctum::actingAs($admin, ['*']);
-
-        $response = $this->postJson('/api/v1/admin/members', [
-            'name'     => 'Mapped Member',
-            'email'    => 'mapped@example.com',
-            'password' => 'password123',
-            'unid'     => 2511,
-        ]);
-
-        $response->assertStatus(201)
-            ->assertJsonFragment(['unid' => 2511]);
-
-        $this->assertDatabaseHas('users', [
-            'email' => 'mapped@example.com',
-            'unid'  => 2511,
-        ]);
-    }
-
-    public function test_admin_cannot_create_member_with_non_existent_unid()
+    public function test_member_always_inherits_admin_unid_regardless_of_payload()
     {
         $admin = User::factory()->create(['unid' => 2510, 'is_admin' => true]);
         Sanctum::actingAs($admin, ['*']);
 
+        // Even if a different unid is sent in the payload, it is ignored on the backend
         $response = $this->postJson('/api/v1/admin/members', [
-            'name'     => 'Bad Member',
-            'email'    => 'bad@example.com',
+            'name'     => 'Scoped Member',
+            'email'    => 'scoped@example.com',
             'password' => 'password123',
-            'unid'     => 9999, // Non-existent
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['unid']);
+        $response->assertStatus(201)
+            ->assertJsonFragment(['unid' => 2510]);
     }
 
     public function test_created_member_is_always_non_admin()
