@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Mail\MemberWelcomeMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class MemberController extends Controller
 {
@@ -41,13 +44,21 @@ class MemberController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $validated['password'] = bcrypt($validated['password']);
+        $plainPassword = $validated['password'];
+        $validated['password'] = bcrypt($plainPassword);
         
         // Force non-admin status and always inherit the Admin's UNID
         $validated['is_admin'] = false;
         $validated['unid'] = $request->user()->unid;
 
         $user = User::create($validated);
+
+        // Send welcome email with credentials
+        try {
+            Mail::to($user->email)->send(new MemberWelcomeMail($user, $plainPassword));
+        } catch (\Exception $e) {
+            Log::error('Failed to send welcome email to member ' . $user->email . ': ' . $e->getMessage());
+        }
 
         return $this->successResponse(new UserResource($user), 'Member created successfully', 201);
     }

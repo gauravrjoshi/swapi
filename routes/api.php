@@ -9,6 +9,8 @@ Route::prefix('v1')->group(function () {
     // Auth Routes
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
+    Route::post('auth/forgot-password', [\App\Http\Controllers\Api\V1\ForgotPasswordController::class, 'sendResetOtp']);
+    Route::post('auth/reset-password', [\App\Http\Controllers\Api\V1\ForgotPasswordController::class, 'resetPassword']);
 
     // Protected Routes
     Route::middleware('auth:sanctum')->group(function () {
