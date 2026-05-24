@@ -37,12 +37,12 @@ class NotificationService
     {
         // If in local environment, just log the notification and return success
         if (app()->isLocal()) {
-            Log::info("Local Environment: Notification would be sent to User ID {$user->id}. Title: {$title}, Body: {$body}");
+            Log::channel('slack')->info("Local Environment: Notification would be sent to User ID {$user->id}. Title: {$title}, Body: {$body}");
             return true;
         }
 
         if (!$this->messaging) {
-            Log::warning("Firebase Messaging is not configured or initialized. Notification skipped.");
+            Log::channel('slack')->warning("Firebase Messaging is not configured or initialized. Notification skipped.");
             return false;
         }
 

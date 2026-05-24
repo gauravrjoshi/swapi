@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\MemberWelcomeMail;
 
 class AuthService
 {
@@ -26,6 +28,7 @@ class AuthService
      */
     public function register(array $data): array
     {
+        $plainPassword = $data['password'];
         $data['password'] = Hash::make($data['password']);
 
         // Calculate unique sequential UNID starting from 2510
@@ -37,6 +40,13 @@ class AuthService
 
         $user = $this->userRepository->create($data);
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Send welcome email with credentials
+        try {
+            Mail::to($user->email)->send(new MemberWelcomeMail($user, $plainPassword));
+        } catch (\Exception $e) {
+            Log::error('Failed to send welcome email to member ' . $user->email . ': ' . $e->getMessage());
+        }
 
         return [
             'user' => $user,

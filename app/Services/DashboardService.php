@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Transaction;
+use Illuminate\Support\Collection;
 
 class DashboardService
 {
@@ -16,14 +17,48 @@ class DashboardService
     }
 
     /**
-     * Get all dashboard data for a specific user.
+     * Get all dashboard data for a specific user or workspace wide.
+     *
+     * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @return array
      */
-    public function getDashboardData(int $userId, ?string $startDate = null, ?string $endDate = null): array
+    public function getDashboardData(?int $userId = null, ?string $startDate = null, ?string $endDate = null): array
     {
         $accounts = $this->accountService->getAccounts($userId);
 
+        $summary = $this->getFinancialSummary($userId, $startDate, $endDate, $accounts);
+        $monthlySavings = $this->getSavingsMetrics($userId, $startDate, $endDate);
+        $chartData = $this->getMonthlyChartData($userId);
+        $expenseChart = $this->getExpenseChartData($userId, $startDate, $endDate);
+
+        return array_merge($summary, [
+            'accounts' => $accounts,
+            'monthlySavings' => $monthlySavings,
+            'chartData' => $chartData,
+            'expenseChart' => $expenseChart,
+        ]);
+    }
+
+    /**
+     * Calculate financial summaries and aggregated balances.
+     *
+     * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @param Collection $accounts
+     * @return array
+     */
+    protected function getFinancialSummary(?int $userId, ?string $startDate, ?string $endDate, Collection $accounts): array
+    {
         $creditsQuery = Transaction::where('type', 'credit');
         $debitsQuery = Transaction::where('type', 'debit');
+
+        if ($userId) {
+            $creditsQuery->where('user_id', $userId);
+            $debitsQuery->where('user_id', $userId);
+        }
 
         if ($startDate) {
             $creditsQuery->where('date', '>=', $startDate);
@@ -34,21 +69,46 @@ class DashboardService
             $debitsQuery->where('date', '<=', $endDate);
         }
 
-        $credits = $creditsQuery->sum('amount');
-        $debits = $debitsQuery->sum('amount');
+        $credits = (float) $creditsQuery->sum('amount');
+        $debits = (float) $debitsQuery->sum('amount');
         $net = $credits - $debits;
 
         // Total assets = general + savings
-        $totalGeneral = $accounts->where('account_type', 'general')->sum('balance');
-        $totalSavings = $accounts->where('account_type', 'savings')->sum('balance');
+        $totalGeneral = (float) $accounts->where('account_type', 'general')->sum('balance');
+        $totalSavings = (float) $accounts->where('account_type', 'savings')->sum('balance');
         $totalAssets = $totalGeneral + $totalSavings;
 
-        $totalLiabilities = $accounts->where('account_type', 'liability')->sum('balance');
+        $totalLiabilities = (float) $accounts->where('account_type', 'liability')->sum('balance');
         $netWorth = $totalAssets - $totalLiabilities;
 
-        // Period savings (transfers tagged as 'savings') — follows the same filter range
+        return [
+            'totalCredits' => $credits,
+            'totalDebits' => $debits,
+            'netProfit' => $net,
+            'totalGeneral' => $totalGeneral,
+            'totalSavings' => $totalSavings,
+            'totalAssets' => $totalAssets,
+            'totalLiabilities' => $totalLiabilities,
+            'netWorth' => $netWorth,
+        ];
+    }
+
+    /**
+     * Get period savings transfers.
+     *
+     * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @return float
+     */
+    protected function getSavingsMetrics(?int $userId, ?string $startDate, ?string $endDate): float
+    {
         $savingsQuery = Transaction::where('type', 'transfer')
             ->where('tag', 'like', 'savings');
+
+        if ($userId) {
+            $savingsQuery->where('user_id', $userId);
+        }
 
         if ($startDate) {
             $savingsQuery->where('date', '>=', $startDate);
@@ -57,41 +117,69 @@ class DashboardService
             $savingsQuery->where('date', '<=', $endDate);
         }
 
-        $monthlySavings = $savingsQuery->sum('amount');
+        return (float) $savingsQuery->sum('amount');
+    }
 
-        // Monthly savings chart data (last 6 months)
+    /**
+     * Get monthly chart data for the last 6 months.
+     *
+     * @param int|null $userId
+     * @return array
+     */
+    protected function getMonthlyChartData(?int $userId): array
+    {
         $chartData = [];
         for ($i = 5; $i >= 0; $i--) {
             $month = now()->subMonths($i);
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd = $month->copy()->endOfMonth();
 
-            $mSavings = Transaction::where('type', 'transfer')
+            $mSavingsQuery = Transaction::where('type', 'transfer')
                 ->whereHas('toAccount', function ($q) {
                     $q->where('account_type', 'savings')
                         ->orWhere('is_savings', true);
                 })
-                ->whereBetween('date', [$monthStart, $monthEnd])
-                ->sum('amount');
+                ->whereBetween('date', [$monthStart, $monthEnd]);
 
-            $mIncome = Transaction::where('type', 'credit')
-                ->whereBetween('date', [$monthStart, $monthEnd])
-                ->sum('amount');
+            $mIncomeQuery = Transaction::where('type', 'credit')
+                ->whereBetween('date', [$monthStart, $monthEnd]);
 
-            $mExpense = Transaction::where('type', 'debit')
-                ->whereBetween('date', [$monthStart, $monthEnd])
-                ->sum('amount');
+            $mExpenseQuery = Transaction::where('type', 'debit')
+                ->whereBetween('date', [$monthStart, $monthEnd]);
+
+            if ($userId) {
+                $mSavingsQuery->where('user_id', $userId);
+                $mIncomeQuery->where('user_id', $userId);
+                $mExpenseQuery->where('user_id', $userId);
+            }
 
             $chartData[] = [
                 'label' => $month->format('M Y'),
-                'income' => (float) $mIncome,
-                'expense' => (float) $mExpense,
-                'savings' => (float) $mSavings,
+                'income' => (float) $mIncomeQuery->sum('amount'),
+                'expense' => (float) $mExpenseQuery->sum('amount'),
+                'savings' => (float) $mSavingsQuery->sum('amount'),
             ];
         }
 
-        // Group period debits by category/tag to build the expense pie chart data
+        return $chartData;
+    }
+
+    /**
+     * Get aggregated debits/expenses grouped by tags.
+     *
+     * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @return array
+     */
+    protected function getExpenseChartData(?int $userId, ?string $startDate, ?string $endDate): array
+    {
         $debitsPeriodQuery = Transaction::where('type', 'debit');
+
+        if ($userId) {
+            $debitsPeriodQuery->where('user_id', $userId);
+        }
+
         if ($startDate) {
             $debitsPeriodQuery->where('date', '>=', $startDate);
         }
@@ -100,7 +188,7 @@ class DashboardService
         }
         $debitsPeriod = $debitsPeriodQuery->get();
 
-        $tags = $this->tagService->getTags($userId);
+        $tags = $this->tagService->getTags($userId ?: auth()->id());
         $tagColorMap = $tags->pluck('color', 'name')->toArray();
         $groupedDebits = $debitsPeriod->groupBy('tag');
 
@@ -132,24 +220,9 @@ class DashboardService
             }
         }
 
-        $expenseChart = collect($expenseChartMap)
+        return collect($expenseChartMap)
             ->sortBy(fn($item) => [-$item['amount'], $item['label']])
             ->values()
             ->toArray();
-
-        return [
-            'accounts' => $accounts,
-            'totalCredits' => $credits,
-            'totalDebits' => $debits,
-            'netProfit' => $net,
-            'totalGeneral' => $totalGeneral,
-            'totalSavings' => $totalSavings,
-            'totalAssets' => $totalAssets,
-            'totalLiabilities' => $totalLiabilities,
-            'netWorth' => $netWorth,
-            'monthlySavings' => (float) $monthlySavings,
-            'chartData' => $chartData,
-            'expenseChart' => $expenseChart,
-        ];
     }
 }

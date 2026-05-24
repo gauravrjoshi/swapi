@@ -124,12 +124,12 @@
     <div class="container">
         <div class="header">
             <h1>Welcome to Unnati!</h1>
-            <p>Your team account is ready</p>
+            <p>Your account is ready</p>
         </div>
         <div class="content">
             <div class="greeting">Hello {{ $user->name }},</div>
             <div class="message">
-                An administrator has created a new StatelyWorld Unnati account for you. You can now log in to the mobile application using the credentials provided below.
+                We're excited to have you on board! Your StatelyWorld Unnati account is now ready. You can log in using the credentials provided below.
             </div>
 
             <div class="card">
