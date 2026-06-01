@@ -14,14 +14,22 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $roles = $this->roles;
+        if ($roles->isEmpty()) {
+            $targetRoleName = $this->is_admin ? 'admin' : 'member';
+            \Spatie\Permission\Models\Role::findOrCreate($targetRoleName, 'web');
+            $this->assignRole($targetRoleName);
+            $roles = $this->roles()->get();
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
             'unid' => $this->unid,
             'is_admin' => (bool) $this->is_admin,
-            'roles' => $this->roles->pluck('name'),
-            'permissions' => $this->roles->flatMap(fn($role) => $role->permissions)
+            'roles' => $roles->pluck('name'),
+            'permissions' => $roles->flatMap(fn($role) => $role->permissions)
                 ->concat($this->permissions)
                 ->pluck('name')
                 ->unique()

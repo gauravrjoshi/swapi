@@ -47,6 +47,14 @@ class RolePermissionService
                 $roleModel->syncPermissions($allPermissions);
             }
         }
+
+        // 3. Self-healing: sync all existing users to their Spatie roles
+        foreach (User::all() as $user) {
+            $targetRole = $user->is_admin ? RoleEnums::ADMIN->value : RoleEnums::MEMBER->value;
+            if (!$user->hasRole($targetRole, 'web')) {
+                $user->assignRole($targetRole);
+            }
+        }
     }
 
     /**
