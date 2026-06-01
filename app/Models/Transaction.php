@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\BelongsToUnid;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Transaction extends Model
 {
-    use \Illuminate\Database\Eloquent\Factories\HasFactory, BelongsToUnid;
+    use \Illuminate\Database\Eloquent\Factories\HasFactory, BelongsToUnid, LogsActivity;
+
 
     protected $fillable = [
         'date',
@@ -145,5 +148,11 @@ class Transaction extends Model
         }
 
         return $this->mainAccount && $this->mainAccount->user_id == $userId;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['*']);
     }
 }
