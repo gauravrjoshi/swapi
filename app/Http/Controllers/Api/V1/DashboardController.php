@@ -32,19 +32,25 @@ class DashboardController extends Controller
     {
         $authUser = $request->user();
 
-        // Default: All Family view (null = workspace-wide aggregated data)
-        $userId = null;
+        // Enforce Spatie roles & permissions check (passing 'web' guard explicitly to bypass Sanctum mismatch)
+        if (!$authUser->hasPermissionTo('view_all_dashboards', 'web') && !$authUser->hasRole('admin', 'web')) {
+            // Force individual view scoped strictly to the requesting user
+            $userId = $authUser->id;
+        } else {
+            // Default: All Family view (null = workspace-wide aggregated data)
+            $userId = null;
 
-        if ($request->has('user_id') && $request->user_id !== null && $request->user_id !== '') {
-            $requestedId = (int) $request->user_id;
+            if ($request->has('user_id') && $request->user_id !== null && $request->user_id !== '') {
+                $requestedId = (int) $request->user_id;
 
-            // Any authenticated user can view any member within the same UNID workspace
-            $targetUser = User::where('unid', $authUser->unid)
-                ->where('id', $requestedId)
-                ->first();
+                // Restrict target query to the same UNID workspace
+                $targetUser = User::where('unid', $authUser->unid)
+                    ->where('id', $requestedId)
+                    ->first();
 
-            // If target is valid, use their ID; otherwise fall back to requester's own data
-            $userId = $targetUser ? $targetUser->id : $authUser->id;
+                // If target is valid, use their ID; otherwise fall back to requester's own data
+                $userId = $targetUser ? $targetUser->id : $authUser->id;
+            }
         }
 
         $startDate = $request->input('start_date');

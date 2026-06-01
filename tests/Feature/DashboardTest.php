@@ -85,4 +85,56 @@ class DashboardTest extends TestCase
         $this->assertEquals(350, $dataGlobal['totalDebits']);
         $this->assertEquals(150, $dataGlobal['netProfit']);
     }
+
+    /**
+     * Verify that the dashboard controller enforces Spatie permission policies.
+     */
+    public function test_dashboard_api_enforces_spatie_role_and_permission_checks(): void
+    {
+        // Seed roles & permissions first
+        $rolePermissionService = app(\App\Services\RolePermissionService::class);
+        $rolePermissionService->seedFromEnums();
+
+        $userA = User::factory()->create(['name' => 'Member A', 'is_admin' => false]);
+        $userB = User::factory()->create(['name' => 'Member B', 'is_admin' => false]);
+
+        // Create accounts for both
+        Account::create(['name' => 'Account A', 'balance' => 1000, 'user_id' => $userA->id]);
+        Account::create(['name' => 'Account B', 'balance' => 500, 'user_id' => $userB->id]);
+
+        // 1. Query dashboard as User A, requesting User B's user_id
+        // Since User A has no roles or 'view_all_dashboards' permission, it MUST be forced back to User A's accounts
+        $response = $this->actingAs($userA)->json('GET', '/api/v1/dashboard', ['user_id' => $userB->id]);
+        $response->assertStatus(200);
+
+        $accounts = $response->json('data.accounts');
+        $this->assertNotEmpty($accounts);
+        foreach ($accounts as $account) {
+            $this->assertEquals($userA->id, $account['user_id']);
+        }
+
+        // 2. Query workspace-wide dashboard as User A (no user_id passed)
+        // Since User A has no permission, it MUST be forced back to User A's accounts
+        $response = $this->actingAs($userA)->json('GET', '/api/v1/dashboard');
+        $response->assertStatus(200);
+
+        $accounts = $response->json('data.accounts');
+        $this->assertNotEmpty($accounts);
+        foreach ($accounts as $account) {
+            $this->assertEquals($userA->id, $account['user_id']);
+        }
+
+        // 3. Grant 'view_all_dashboards' permission to User A
+        $userA->givePermissionTo('view_all_dashboards');
+
+        // Now querying User B's dashboard should successfully return User B's accounts!
+        $response = $this->actingAs($userA)->json('GET', '/api/v1/dashboard', ['user_id' => $userB->id]);
+        $response->assertStatus(200);
+
+        $accounts = $response->json('data.accounts');
+        $this->assertNotEmpty($accounts);
+        foreach ($accounts as $account) {
+            $this->assertEquals($userB->id, $account['user_id']);
+        }
+    }
 }

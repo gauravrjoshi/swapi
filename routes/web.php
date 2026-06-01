@@ -22,8 +22,8 @@ Route::middleware(['auth'])->group(function () {
         if ($request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('description', 'like', '%' . $request->search . '%')
-                  ->orWhere('transaction_details', 'like', '%' . $request->search . '%')
-                  ->orWhere('tag', 'like', '%' . $request->search . '%');
+                    ->orWhere('transaction_details', 'like', '%' . $request->search . '%')
+                    ->orWhere('tag', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -38,8 +38,8 @@ Route::middleware(['auth'])->group(function () {
         if ($request->account) {
             $query->where(function ($q) use ($request) {
                 $q->where('account_id', $request->account)
-                  ->orWhere('from_account_id', $request->account)
-                  ->orWhere('to_account_id', $request->account);
+                    ->orWhere('from_account_id', $request->account)
+                    ->orWhere('to_account_id', $request->account);
             });
         }
 
@@ -94,28 +94,37 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/admin/users', function () {
-        if (!auth()->user()->is_admin) abort(403);
+        if (!auth()->user()->is_admin)
+            abort(403);
         return view('user_management_page');
     });
 
+    Route::get('/admin/roles', function () {
+        if (!auth()->user()->is_admin)
+            abort(403);
+        return view('roles_permissions_page');
+    });
+
     Route::get('/admin/impersonate/{user}', function (App\Models\User $user) {
-        if (!auth()->user()->is_admin) abort(403);
-        
+        if (!auth()->user()->is_admin)
+            abort(403);
+
         session(['impersonator_id' => auth()->id()]);
         auth()->login($user);
-        
+
         return redirect('/dashboard')->with('success', "Now impersonating {$user->name}");
     })->name('impersonate');
 
     Route::get('/admin/stop-impersonating', function () {
-        if (!session()->has('impersonator_id')) return redirect('/');
-        
+        if (!session()->has('impersonator_id'))
+            return redirect('/');
+
         $adminId = session('impersonator_id');
         session()->forget('impersonator_id');
-        
+
         $admin = App\Models\User::findOrFail($adminId);
         auth()->login($admin);
-        
+
         return redirect('/admin/users')->with('success', 'Welcome back, ' . $admin->name);
     })->name('stop-impersonating');
 });

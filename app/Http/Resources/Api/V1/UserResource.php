@@ -20,6 +20,12 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'unid' => $this->unid,
             'is_admin' => (bool) $this->is_admin,
+            'roles' => $this->roles->pluck('name'),
+            'permissions' => $this->roles->flatMap(fn($role) => $role->permissions)
+                ->concat($this->permissions)
+                ->pluck('name')
+                ->unique()
+                ->values(),
             'created_at' => $this->created_at->toIso8601String(),
         ];
     }
