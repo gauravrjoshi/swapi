@@ -46,7 +46,7 @@ class MemberController extends Controller
 
         $plainPassword = $validated['password'];
         $validated['password'] = bcrypt($plainPassword);
-        
+
         // Force non-admin status and always inherit the Admin's UNID
         $validated['is_admin'] = false;
         $validated['unid'] = $request->user()->unid;
@@ -79,6 +79,7 @@ class MemberController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'password' => ['nullable', 'string', 'min:8'],
+            'unid' => ['nullable', 'integer', 'exists:users,unid'],
         ]);
 
         if (isset($validated['password']) && !empty($validated['password'])) {

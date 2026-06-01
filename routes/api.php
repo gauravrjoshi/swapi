@@ -17,6 +17,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('me', [UserController::class, 'me']);
         Route::get('dashboard', [\App\Http\Controllers\Api\V1\DashboardController::class, 'index']);
+        Route::get('family', [\App\Http\Controllers\Api\V1\FamilyController::class, 'index']);
 
         // Admin Routes
         Route::middleware('admin')->prefix('admin')->group(function () {

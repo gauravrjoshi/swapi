@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 
@@ -18,16 +19,42 @@ class DashboardController extends Controller
     /**
      * Get dashboard metrics.
      *
+     * Two modes:
+     *   1. "All Family" (no user_id): aggregated data for the entire UNID workspace.
+     *      Available to ALL authenticated users.
+     *   2. "Individual" (?user_id=X): data scoped to a specific family member.
+     *      UNID-scoped — only members within the same workspace can be viewed.
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
-        $data = $this->dashboardService->getDashboardData($request->user()->id);
+        $authUser = $request->user();
+
+        // Default: All Family view (null = workspace-wide aggregated data)
+        $userId = null;
+
+        if ($request->has('user_id') && $request->user_id !== null && $request->user_id !== '') {
+            $requestedId = (int) $request->user_id;
+
+            // Any authenticated user can view any member within the same UNID workspace
+            $targetUser = User::where('unid', $authUser->unid)
+                ->where('id', $requestedId)
+                ->first();
+
+            // If target is valid, use their ID; otherwise fall back to requester's own data
+            $userId = $targetUser ? $targetUser->id : $authUser->id;
+        }
+
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $data = $this->dashboardService->getDashboardData($userId, $startDate, $endDate);
 
         return response()->json([
             'success' => true,
-            'data' => $data
+            'data' => $data,
         ]);
     }
 }

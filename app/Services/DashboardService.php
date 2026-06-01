@@ -142,9 +142,17 @@ class DashboardService
                 ->whereBetween('date', [$monthStart, $monthEnd]);
 
             $mIncomeQuery = Transaction::where('type', 'credit')
+                ->where(function ($q) {
+                    $q->whereNull('from_account_id')
+                        ->orWhereNull('to_account_id');
+                })
                 ->whereBetween('date', [$monthStart, $monthEnd]);
 
             $mExpenseQuery = Transaction::where('type', 'debit')
+                ->where(function ($q) {
+                    $q->whereNull('from_account_id')
+                        ->orWhereNull('to_account_id');
+                })
                 ->whereBetween('date', [$monthStart, $monthEnd]);
 
             if ($userId) {
@@ -174,7 +182,11 @@ class DashboardService
      */
     protected function getExpenseChartData(?int $userId, ?string $startDate, ?string $endDate): array
     {
-        $debitsPeriodQuery = Transaction::where('type', 'debit');
+        $debitsPeriodQuery = Transaction::where('type', 'debit')
+            ->where(function ($q) {
+                $q->whereNull('from_account_id')
+                    ->orWhereNull('to_account_id');
+            });
 
         if ($userId) {
             $debitsPeriodQuery->where('user_id', $userId);
@@ -188,14 +200,17 @@ class DashboardService
         }
         $debitsPeriod = $debitsPeriodQuery->get();
 
-        $tags = $this->tagService->getTags($userId ?: auth()->id());
+        $targetUserId = $userId ?: auth()->id();
+        $tags = $targetUserId ? $this->tagService->getTags($targetUserId) : collect();
         $tagColorMap = $tags->pluck('color', 'name')->toArray();
+        $tagIdMap = $tags->pluck('id', 'name')->toArray();
         $groupedDebits = $debitsPeriod->groupBy('tag');
 
         $expenseChartMap = [];
         foreach ($tags as $tag) {
             $name = $tag->name;
             $color = $tag->color;
+            $tagId = $tag->id;
             $amount = 0.0;
             if ($groupedDebits->has($name)) {
                 $amount = (float) $groupedDebits->get($name)->sum('amount');
@@ -204,6 +219,7 @@ class DashboardService
                 'label' => $name,
                 'amount' => $amount,
                 'color' => $color,
+                'tag_id' => $tagId,
             ];
         }
 
@@ -212,15 +228,18 @@ class DashboardService
             $name = $tagName ?: 'Uncategorized';
             if (!isset($expenseChartMap[$name])) {
                 $color = $tagColorMap[$name] ?? '#94a3b8';
+                $tagId = $tagIdMap[$name] ?? null;
                 $expenseChartMap[$name] = [
                     'label' => $name,
                     'amount' => (float) $transactions->sum('amount'),
                     'color' => $color,
+                    'tag_id' => $tagId,
                 ];
             }
         }
 
         return collect($expenseChartMap)
+            ->filter(fn($item) => (float) $item['amount'] != 0.0)
             ->sortBy(fn($item) => [-$item['amount'], $item['label']])
             ->values()
             ->toArray();

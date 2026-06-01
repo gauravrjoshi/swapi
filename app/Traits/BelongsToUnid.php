@@ -15,9 +15,16 @@ trait BelongsToUnid
     {
         // Apply global query scope to isolate data by UNID
         static::addGlobalScope('unid', function (Builder $builder) {
+            $model = $builder->getModel();
+
+            // If the model is a User, and no user is loaded in memory yet,
+            // bypass to prevent infinite recursion during authentication.
+            if ($model instanceof User && !Auth::hasUser()) {
+                return;
+            }
+
             if (Auth::check()) {
                 $user = Auth::user();
-                $model = $builder->getModel();
                 $table = $model->getTable();
 
                 if ($model instanceof User) {

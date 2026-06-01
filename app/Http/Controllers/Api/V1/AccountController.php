@@ -21,7 +21,8 @@ class AccountController extends Controller
      */
     public function index(Request $request)
     {
-        $accounts = $this->accountService->getAccounts($request->user()->id);
+        // $accounts = $this->accountService->getAccounts($request->user()->id);
+        $accounts = $this->accountService->getAccounts();
         return response()->json($accounts);
     }
 

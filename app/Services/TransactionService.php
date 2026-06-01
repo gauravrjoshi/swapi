@@ -37,6 +37,10 @@ class TransactionService
                 $data['account_id'] = $this->accountService->findByName($data['account'], $data['user_id'])?->id;
             }
 
+            $isCrossUserTransfer = false;
+            $fromAccount = null;
+            $toAccount = null;
+
             if (isset($data['type']) && $data['type'] === 'transfer') {
                 if (empty($data['from_account_id']) && isset($data['from_account'])) {
                     $data['from_account_id'] = $this->accountService->findByName($data['from_account'], $data['user_id'])?->id;
@@ -49,6 +53,76 @@ class TransactionService
                 if (empty($data['account_id']) && !empty($data['from_account_id'])) {
                     $data['account_id'] = $data['from_account_id'];
                 }
+
+                if (!empty($data['from_account_id']) && !empty($data['to_account_id'])) {
+                    $fromAccount = Account::find($data['from_account_id']);
+                    $toAccount = Account::find($data['to_account_id']);
+                    if ($fromAccount && $toAccount && $fromAccount->user_id !== $toAccount->user_id) {
+                        $isCrossUserTransfer = true;
+                    }
+                }
+            }
+
+            if ($isCrossUserTransfer) {
+                $refNo = $data['ref_no'] ?? ('trf_' . \Illuminate\Support\Str::random(16));
+
+                // 1. Create Sibling (Credit) Transaction for Recipient
+                $siblingData = [
+                    'date' => $data['date'],
+                    'time' => $data['time'],
+                    'type' => 'credit',
+                    'account_id' => $toAccount->id,
+                    'account' => $toAccount->name,
+                    'from_account_id' => $fromAccount->id,
+                    'to_account_id' => $toAccount->id,
+                    'amount' => $data['amount'],
+                    'ref_no' => $refNo,
+                    'order_id' => $data['order_id'] ?? null,
+                    'remarks' => $data['remarks'] ?? null,
+                    'tag' => $data['tag'] ?? null,
+                    'tag_id' => null, // resolved scoped via saving hook
+                    'comment' => $data['comment'] ?? null,
+                    'user_id' => $toAccount->user_id,
+                    'description' => $data['description'] ?? null,
+                    'transaction_details' => $data['transaction_details'] ?? ("Transfer from " . ($fromAccount->user?->name ?? 'User')),
+                    'other_transaction_details' => $fromAccount->name,
+                ];
+
+                $sibling = new Transaction($siblingData);
+                $sibling->save();
+                $sibling->running_balance = $this->updateBalance($toAccount->id, (float) $data['amount']);
+                $sibling->save();
+                $this->sendTransactionNotification($sibling, 'create');
+
+                // 2. Create Primary (Debit) Transaction for Sender
+                $primaryData = [
+                    'date' => $data['date'],
+                    'time' => $data['time'],
+                    'type' => 'debit',
+                    'account_id' => $fromAccount->id,
+                    'account' => $fromAccount->name,
+                    'from_account_id' => $fromAccount->id,
+                    'to_account_id' => $toAccount->id,
+                    'amount' => $data['amount'],
+                    'ref_no' => $refNo,
+                    'order_id' => $data['order_id'] ?? null,
+                    'remarks' => $data['remarks'] ?? null,
+                    'tag' => $data['tag'] ?? null,
+                    'tag_id' => $data['tag_id'] ?? null,
+                    'comment' => $data['comment'] ?? null,
+                    'user_id' => $fromAccount->user_id,
+                    'description' => $data['description'] ?? null,
+                    'transaction_details' => $data['transaction_details'] ?? ("Transfer to " . ($toAccount->user?->name ?? 'User')),
+                    'other_transaction_details' => $toAccount->name,
+                ];
+
+                $transaction = new Transaction($primaryData);
+                $transaction->save();
+                $transaction->running_balance = $this->updateBalance($fromAccount->id, -(float) $data['amount']);
+                $transaction->save();
+                $this->sendTransactionNotification($transaction, 'create');
+
+                return $transaction;
             }
 
             if (!isset($data['account'])) {
@@ -129,6 +203,21 @@ class TransactionService
     public function deleteTransaction(Transaction $transaction): void
     {
         DB::transaction(function () use ($transaction) {
+            // Sibling check for cross-user transfer (linked by ref_no)
+            if (in_array($transaction->type, ['credit', 'debit']) && $transaction->from_account_id && $transaction->to_account_id && $transaction->ref_no) {
+                $siblingType = $transaction->type === 'debit' ? 'credit' : 'debit';
+                $sibling = Transaction::where('ref_no', $transaction->ref_no)
+                    ->where('type', $siblingType)
+                    ->where('id', '!=', $transaction->id)
+                    ->first();
+
+                if ($sibling) {
+                    $this->reverseBalanceImpact($sibling);
+                    $this->sendTransactionNotification($sibling, 'delete');
+                    $sibling->delete();
+                }
+            }
+
             $this->reverseBalanceImpact($transaction);
             $this->sendTransactionNotification($transaction, 'delete');
             $transaction->delete();
@@ -145,11 +234,26 @@ class TransactionService
     public function updateTransaction(Transaction $transaction, array $data): Transaction
     {
         return DB::transaction(function () use ($transaction, $data) {
-            // 1. Reverse old impact
+            // If the original transaction was a cross-user transfer, find and delete the sibling first to clean up old states
+            if (in_array($transaction->type, ['credit', 'debit']) && $transaction->from_account_id && $transaction->to_account_id && $transaction->ref_no) {
+                $siblingType = $transaction->type === 'debit' ? 'credit' : 'debit';
+                $sibling = Transaction::where('ref_no', $transaction->ref_no)
+                    ->where('type', $siblingType)
+                    ->where('id', '!=', $transaction->id)
+                    ->first();
+
+                if ($sibling) {
+                    $this->reverseBalanceImpact($sibling);
+                    $this->sendTransactionNotification($sibling, 'delete');
+                    $sibling->delete();
+                }
+            }
+
+            // 1. Reverse old impact of main transaction
             $this->reverseBalanceImpact($transaction);
 
-            // 2. Apply new data
-            $data['user_id'] = $data['user_id'] ?? Auth::id();
+            // 2. Apply defaults & setup
+            $data['user_id'] = $data['user_id'] ?? Auth::id() ?? $transaction->user_id;
             $data['date'] = $data['date'] ?? now()->toDateString();
             $data['time'] = $data['time'] ?? now()->toTimeString();
             $data['transaction_details'] = $data['transaction_details'] ?? ($data['description'] ?? 'Transaction');
@@ -172,6 +276,79 @@ class TransactionService
                 }
             }
 
+            // Determine if the new/updated state is a cross-user transfer
+            $isCrossUserTransfer = false;
+            $fromAccount = null;
+            $toAccount = null;
+
+            $wasTransfer = ($transaction->type === 'transfer' || (!empty($transaction->from_account_id) && !empty($transaction->to_account_id)));
+            $newType = $data['type'] ?? ($wasTransfer ? 'transfer' : $transaction->type);
+            $newFromAccountId = $data['from_account_id'] ?? $transaction->from_account_id;
+            $newToAccountId = $data['to_account_id'] ?? $transaction->to_account_id;
+
+            if ($newType === 'transfer' && !empty($newFromAccountId) && !empty($newToAccountId)) {
+                $fromAccount = Account::find($newFromAccountId);
+                $toAccount = Account::find($newToAccountId);
+                if ($fromAccount && $toAccount && $fromAccount->user_id !== $toAccount->user_id) {
+                    $isCrossUserTransfer = true;
+                }
+            }
+
+            if ($isCrossUserTransfer) {
+                // Generate or reuse ref_no
+                $refNo = $data['ref_no'] ?? $transaction->ref_no ?? ('trf_' . \Illuminate\Support\Str::random(16));
+                $amount = (float) ($data['amount'] ?? $transaction->amount);
+
+                // 1. Create/Recreate sibling (credit) for recipient
+                $siblingData = [
+                    'date' => $data['date'] ?? $transaction->date->toDateString(),
+                    'time' => $data['time'] ?? $transaction->time,
+                    'type' => 'credit',
+                    'account_id' => $toAccount->id,
+                    'account' => $toAccount->name,
+                    'from_account_id' => $fromAccount->id,
+                    'to_account_id' => $toAccount->id,
+                    'amount' => $amount,
+                    'ref_no' => $refNo,
+                    'order_id' => $data['order_id'] ?? $transaction->order_id,
+                    'remarks' => $data['remarks'] ?? $transaction->remarks,
+                    'tag' => $data['tag'] ?? $transaction->tag,
+                    'tag_id' => null, // resolved scoped
+                    'comment' => $data['comment'] ?? $transaction->comment,
+                    'user_id' => $toAccount->user_id,
+                    'description' => $data['description'] ?? $transaction->description,
+                    'transaction_details' => $data['transaction_details'] ?? ("Transfer from " . ($fromAccount->user?->name ?? 'User')),
+                    'other_transaction_details' => $fromAccount->name,
+                ];
+
+                $sibling = new Transaction($siblingData);
+                $sibling->save();
+                $sibling->running_balance = $this->updateBalance($toAccount->id, $amount);
+                $sibling->save();
+                $this->sendTransactionNotification($sibling, 'create');
+
+                // 2. Update the main transaction to be the debit (primary) for sender
+                $data['type'] = 'debit';
+                $data['account_id'] = $fromAccount->id;
+                $data['account'] = $fromAccount->name;
+                $data['from_account_id'] = $fromAccount->id;
+                $data['to_account_id'] = $toAccount->id;
+                $data['ref_no'] = $refNo;
+                $data['transaction_details'] = $data['transaction_details'] ?? ("Transfer to " . ($toAccount->user?->name ?? 'User'));
+                $data['other_transaction_details'] = $toAccount->name;
+
+                $transaction->update($data);
+                $transaction->running_balance = $this->updateBalance($fromAccount->id, -$amount);
+                $transaction->from_account_running_balance = null;
+                $transaction->to_account_running_balance = null;
+                $transaction->save();
+
+                $this->sendTransactionNotification($transaction, 'update');
+
+                return $transaction;
+            }
+
+            // Normal standard update flow (for self-transfer, credit, debit)
             if (isset($data['account_id'])) {
                 $data['account'] = Account::find($data['account_id'])?->name ?? 'Unknown';
             } elseif (isset($data['from_account_id'])) {
@@ -180,7 +357,6 @@ class TransactionService
 
             $transaction->update($data);
 
-            // 3. Apply new impact
             $type = $data['type'] ?? $transaction->type;
             $amount = (float) ($data['amount'] ?? $transaction->amount);
             $accountId = $data['account_id'] ?? $transaction->account_id;

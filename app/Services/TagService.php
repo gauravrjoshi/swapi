@@ -13,11 +13,12 @@ class TagService
      * System default tags.
      */
     private static array $defaultTags = [
-        ['id' => -1, 'name' => 'Grocery', 'color' => '#f87171'],
+        ['id' => -1, 'name' => 'Food & Drinks', 'color' => '#f87171'],
         ['id' => -2, 'name' => 'Shopping', 'color' => '#fb923c'],
-        ['id' => -3, 'name' => 'Salary', 'color' => '#fbbf24'],
-        ['id' => -4, 'name' => 'Savings', 'color' => '#34d399'],
-        ['id' => -5, 'name' => 'Medical', 'color' => '#60a5fa'],
+        ['id' => -3, 'name' => 'Grocery', 'color' => '#fbbf24'],
+        ['id' => -4, 'name' => 'Medical', 'color' => '#34d399'],
+        ['id' => -5, 'name' => 'Entertainment', 'color' => '#60a5fa'],
+        ['id' => -6, 'name' => 'Salary', 'color' => '#a78bfa'],
     ];
 
     /**
@@ -150,7 +151,7 @@ class TagService
     public function getNameRules($user, ?int $ignoreId = null): array
     {
         $uniqueRule = Rule::unique('tags', 'name')
-            ->where(fn ($q) => $q->whereIn('user_id', function ($query) use ($user) {
+            ->where(fn($q) => $q->whereIn('user_id', function ($query) use ($user) {
                 $query->select('id')
                     ->from('users')
                     ->where('unid', $user->unid);
