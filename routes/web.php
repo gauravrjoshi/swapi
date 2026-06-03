@@ -4,7 +4,10 @@ use Illuminate\Support\Facades\Route;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 Route::get('/', function () {
-    return redirect('/dashboard');
+    if (auth()->check()) {
+        return redirect('/dashboard');
+    }
+    return view('landing_page');
 });
 
 Route::middleware(['auth'])->group(function () {

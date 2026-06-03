@@ -430,6 +430,10 @@ class TransactionService
                     ->orWhere('tag', 'like', '%' . $search . '%');
             });
         }
+        // if auth user is admin then he can see all transactions
+        if (!auth()->user()->isAdmin()) {
+            $query->where('user_id', auth()->id());
+        }
 
         if (!empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);

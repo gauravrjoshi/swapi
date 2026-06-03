@@ -26,6 +26,7 @@ class AccountService
             ->orderBy('account_type', 'asc')
             ->orderBy('name', 'asc');
 
+        $userId = $userId ?? auth()->id();
         if ($userId) {
             $query->where('user_id', $userId);
         }
