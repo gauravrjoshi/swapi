@@ -31,7 +31,9 @@ class DashboardService
         $workspaceWide = false;
 
         if ($authUser) {
-            $hasPermission = $authUser->hasPermissionTo(PermissionEmnum::VIEW_ALL_DASHBOARDS->value, 'web') || $authUser->hasRole('admin', 'web');
+            $hasPermission = $authUser->is_admin ||
+                $authUser->hasRole('admin', 'web') ||
+                $authUser->hasPermissionTo(PermissionEmnum::VIEW_ALL_DASHBOARDS->value, 'web');
             if ($hasPermission) {
                 if ($userId === null) {
                     $workspaceWide = true;

@@ -32,8 +32,12 @@ class DashboardController extends Controller
     {
         $authUser = $request->user();
 
+        $canViewAll = $authUser->is_admin ||
+            $authUser->hasRole('admin', 'web') ||
+            $authUser->hasPermissionTo('view_all_dashboards', 'web');
+
         // Enforce Spatie roles & permissions check (passing 'web' guard explicitly to bypass Sanctum mismatch)
-        if (!$authUser->hasPermissionTo('view_all_dashboards', 'web') && !$authUser->hasRole('admin', 'web')) {
+        if (!$canViewAll) {
             // Force individual view scoped strictly to the requesting user
             $userId = $authUser->id;
         } else {

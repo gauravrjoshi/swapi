@@ -27,6 +27,12 @@ Route::prefix('v1')->group(function () {
             Route::put('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'update']);
             Route::delete('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'destroy']);
         });
+        // Support Ticket Admin Routes
+        Route::get('admin/support-tickets', [\App\Http\Controllers\Api\V1\Admin\SupportTicketController::class, 'index']);
+        Route::put('admin/support-tickets/{id}/status', [\App\Http\Controllers\Api\V1\Admin\SupportTicketController::class, 'updateStatus']);
+
+        // Support Ticket User Routes
+        Route::apiResource('support-tickets', \App\Http\Controllers\Api\V1\SupportTicketController::class)->only(['index', 'store', 'show']);
 
         // Task Routes
         Route::apiResource('tasks', \App\Http\Controllers\Api\V1\TaskController::class);
