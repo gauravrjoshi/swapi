@@ -18,17 +18,20 @@ class AccountService
      * Get all accounts for a user.
      *
      * @param int|null $userId
+     * @param bool $workspaceWide
      * @return Collection
      */
-    public function getAccounts(?int $userId = null): Collection
+    public function getAccounts(?int $userId = null, bool $workspaceWide = false): Collection
     {
         $query = Account::with('user')
             ->orderBy('account_type', 'asc')
             ->orderBy('name', 'asc');
 
-        $userId = $userId ?? auth()->id();
-        if ($userId) {
-            $query->where('user_id', $userId);
+        if (!$workspaceWide) {
+            $userId = $userId ?? auth()->id();
+            if ($userId) {
+                $query->where('user_id', $userId);
+            }
         }
 
         return $query->get();

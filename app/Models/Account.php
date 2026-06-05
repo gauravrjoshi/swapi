@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\BelongsToUnid;
 
 class Account extends Model
 {
-    use HasFactory, BelongsToUnid;
+    use HasFactory, BelongsToUnid, SoftDeletes;
 
     protected $fillable = [
         'name',

@@ -58,9 +58,9 @@ class Transaction extends Model
 
                 if (!$userId) {
                     if ($transaction->account_id) {
-                        $userId = \App\Models\Account::find($transaction->account_id)?->user_id;
+                        $userId = \App\Models\Account::withTrashed()->find($transaction->account_id)?->user_id;
                     } elseif ($transaction->from_account_id) {
-                        $userId = \App\Models\Account::find($transaction->from_account_id)?->user_id;
+                        $userId = \App\Models\Account::withTrashed()->find($transaction->from_account_id)?->user_id;
                     }
                 }
 
@@ -103,9 +103,9 @@ class Transaction extends Model
         $userId = $this->user_id;
         if (!$userId) {
             if ($this->account_id) {
-                $userId = \App\Models\Account::find($this->account_id)?->user_id;
+                $userId = \App\Models\Account::withTrashed()->find($this->account_id)?->user_id;
             } elseif ($this->from_account_id) {
-                $userId = \App\Models\Account::find($this->from_account_id)?->user_id;
+                $userId = \App\Models\Account::withTrashed()->find($this->from_account_id)?->user_id;
             }
         }
         if (!$userId) {
@@ -116,17 +116,17 @@ class Transaction extends Model
 
     public function mainAccount()
     {
-        return $this->belongsTo(Account::class, 'account_id');
+        return $this->belongsTo(Account::class, 'account_id')->withTrashed();
     }
 
     public function fromAccount()
     {
-        return $this->belongsTo(Account::class, 'from_account_id');
+        return $this->belongsTo(Account::class, 'from_account_id')->withTrashed();
     }
 
     public function toAccount()
     {
-        return $this->belongsTo(Account::class, 'to_account_id');
+        return $this->belongsTo(Account::class, 'to_account_id')->withTrashed();
     }
 
     /**

@@ -49,4 +49,17 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::all();
     }
+
+    /**
+     * Update a user.
+     *
+     * @param User $user
+     * @param array $data
+     * @return User
+     */
+    public function update(User $user, array $data): User
+    {
+        $user->update($data);
+        return $user;
+    }
 }

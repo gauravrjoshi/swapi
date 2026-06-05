@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Transaction;
+use App\Enums\PermissionEmnum;
 use Illuminate\Support\Collection;
 
 class DashboardService
@@ -26,7 +27,25 @@ class DashboardService
      */
     public function getDashboardData(?int $userId = null, ?string $startDate = null, ?string $endDate = null): array
     {
-        $accounts = $this->accountService->getAccounts($userId);
+        $authUser = auth()->user();
+        $workspaceWide = false;
+
+        if ($authUser) {
+            $hasPermission = $authUser->hasPermissionTo(PermissionEmnum::VIEW_ALL_DASHBOARDS->value, 'web') || $authUser->hasRole('admin', 'web');
+            if ($hasPermission) {
+                if ($userId === null) {
+                    $workspaceWide = true;
+                }
+            } else {
+                $userId = $authUser->id;
+            }
+        } else {
+            if ($userId === null) {
+                $workspaceWide = true;
+            }
+        }
+
+        $accounts = $this->accountService->getAccounts($userId, $workspaceWide);
 
         $summary = $this->getFinancialSummary($userId, $startDate, $endDate, $accounts);
         $monthlySavings = $this->getSavingsMetrics($userId, $startDate, $endDate);

@@ -31,4 +31,6 @@ interface UserRepositoryInterface
     public function findById(int $id): ?User;
 
     public function getAll(): \Illuminate\Database\Eloquent\Collection;
+
+    public function update(User $user, array $data): User;
 }

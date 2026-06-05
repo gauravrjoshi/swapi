@@ -32,4 +32,22 @@ class UserController extends Controller
 
         return $this->successResponse(new UserResource($user), 'User profile retrieved successfully');
     }
+
+    /**
+     * Update authenticated user profile.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function update(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $request->user()->id,
+        ]);
+
+        $user = $this->userService->updateProfile($request->user(), $request->only('name', 'email'));
+
+        return $this->successResponse(new UserResource($user), 'Profile updated successfully');
+    }
 }

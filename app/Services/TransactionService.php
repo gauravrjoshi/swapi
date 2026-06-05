@@ -55,8 +55,8 @@ class TransactionService
                 }
 
                 if (!empty($data['from_account_id']) && !empty($data['to_account_id'])) {
-                    $fromAccount = Account::find($data['from_account_id']);
-                    $toAccount = Account::find($data['to_account_id']);
+                    $fromAccount = Account::withTrashed()->find($data['from_account_id']);
+                    $toAccount = Account::withTrashed()->find($data['to_account_id']);
                     if ($fromAccount && $toAccount && $fromAccount->user_id !== $toAccount->user_id) {
                         $isCrossUserTransfer = true;
                     }
@@ -127,9 +127,9 @@ class TransactionService
 
             if (!isset($data['account'])) {
                 if (isset($data['account_id'])) {
-                    $data['account'] = Account::find($data['account_id'])?->name ?? 'Unknown';
+                    $data['account'] = Account::withTrashed()->find($data['account_id'])?->name ?? 'Unknown';
                 } elseif (isset($data['from_account_id'])) {
-                    $data['account'] = Account::find($data['from_account_id'])?->name ?? 'Unknown';
+                    $data['account'] = Account::withTrashed()->find($data['from_account_id'])?->name ?? 'Unknown';
                 } else {
                     $data['account'] = 'Generic';
                 }
@@ -178,7 +178,7 @@ class TransactionService
 
         $amount = (float) $amount;
 
-        $account = Account::find($accountId);
+        $account = Account::withTrashed()->find($accountId);
         if ($account) {
             // For Savings accounts: Positive amount increases balance (Credit), Negative decreases it (Debit).
             // For Liability accounts: Positive amount (Repayment/Credit) DECREASES the debt.
@@ -287,8 +287,8 @@ class TransactionService
             $newToAccountId = $data['to_account_id'] ?? $transaction->to_account_id;
 
             if ($newType === 'transfer' && !empty($newFromAccountId) && !empty($newToAccountId)) {
-                $fromAccount = Account::find($newFromAccountId);
-                $toAccount = Account::find($newToAccountId);
+                $fromAccount = Account::withTrashed()->find($newFromAccountId);
+                $toAccount = Account::withTrashed()->find($newToAccountId);
                 if ($fromAccount && $toAccount && $fromAccount->user_id !== $toAccount->user_id) {
                     $isCrossUserTransfer = true;
                 }
@@ -350,9 +350,9 @@ class TransactionService
 
             // Normal standard update flow (for self-transfer, credit, debit)
             if (isset($data['account_id'])) {
-                $data['account'] = Account::find($data['account_id'])?->name ?? 'Unknown';
+                $data['account'] = Account::withTrashed()->find($data['account_id'])?->name ?? 'Unknown';
             } elseif (isset($data['from_account_id'])) {
-                $data['account'] = Account::find($data['from_account_id'])?->name ?? 'Unknown';
+                $data['account'] = Account::withTrashed()->find($data['from_account_id'])?->name ?? 'Unknown';
             }
 
             $transaction->update($data);

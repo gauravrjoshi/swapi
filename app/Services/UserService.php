@@ -30,4 +30,16 @@ class UserService
     {
         return $this->userRepository->getAll();
     }
+
+    /**
+     * Update user profile.
+     *
+     * @param User $user
+     * @param array $data
+     * @return User
+     */
+    public function updateProfile(User $user, array $data): User
+    {
+        return $this->userRepository->update($user, $data);
+    }
 }
