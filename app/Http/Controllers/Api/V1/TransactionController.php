@@ -69,12 +69,13 @@ class TransactionController extends Controller
             'from_account_id' => 'nullable|exists:accounts,id',
             'to_account_id' => 'nullable|exists:accounts,id|different:from_account_id',
             'amount' => 'required|numeric|min:0.01',
-            'ref_no' => 'nullable|string|max:100',
+            'ref_no' => 'nullable|string|max:100|unique:transactions,ref_no',
             'order_id' => 'nullable|string|max:100',
             'remarks' => 'nullable|string|max:255',
             'tag' => 'nullable|string|max:50',
             'tag_id' => 'nullable|integer',
             'comment' => 'nullable|string|max:255',
+            'image' => 'nullable|image|max:10240', // Max 10MB
         ]);
 
         $user = $request->user();
@@ -116,6 +117,11 @@ class TransactionController extends Controller
 
         $transaction = $transactionService->createTransaction($validated);
 
+        if ($request->hasFile('image')) {
+            $transaction->clearMediaCollection('receipt');
+            $transaction->addMediaFromRequest('image')->toMediaCollection('receipt');
+        }
+
         return response()->json($transaction, 201);
     }
 
@@ -128,6 +134,33 @@ class TransactionController extends Controller
             abort(403);
         }
         return response()->json($transaction);
+    }
+
+    /**
+     * Stream the receipt attachment — only accessible by the transaction owner.
+     */
+    public function receipt(Request $request, $id)
+    {
+        $transaction = Transaction::findOrFail($id);
+
+        if ((int) $transaction->user_id !== (int) $request->user()->id) {
+            abort(403);
+        }
+
+        $media = $transaction->getFirstMedia('receipt');
+        if (!$media) {
+            abort(404);
+        }
+
+        $path = $media->getPath();
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => $media->mime_type,
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
     }
 
     /**
@@ -151,12 +184,13 @@ class TransactionController extends Controller
                 'from_account_id' => 'nullable|exists:accounts,id',
                 'to_account_id' => 'nullable|exists:accounts,id|different:from_account_id',
                 'amount' => 'required|numeric|min:0.01',
-                'ref_no' => 'nullable|string|max:100',
+                'ref_no' => 'nullable|string|max:100|unique:transactions,ref_no,' . $transaction->id,
                 'order_id' => 'nullable|string|max:100',
                 'remarks' => 'nullable|string|max:255',
                 'tag' => 'nullable|string|max:50',
                 'tag_id' => 'nullable|integer',
                 'comment' => 'nullable|string|max:255',
+                'image' => 'nullable|image|max:10240', // Max 10MB
             ]);
 
             $user = $request->user();
@@ -194,6 +228,11 @@ class TransactionController extends Controller
             }
 
             $updatedTransaction = $transactionService->updateTransaction($transaction, $validated);
+
+            if ($request->hasFile('image')) {
+                $updatedTransaction->clearMediaCollection('receipt');
+                $updatedTransaction->addMediaFromRequest('image')->toMediaCollection('receipt');
+            }
 
             return response()->json($updatedTransaction);
         } catch (ValidationException $e) {

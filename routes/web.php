@@ -142,6 +142,3 @@ Route::post('/logout', function () {
     request()->session()->regenerateToken();
     return redirect('/login')->with('success', 'You have been logged out successfully.');
 });
-
-// Since I don't have a login system ready in this task, I'll add a bypass for testing if needed
-// or just assume the user will login via the existing API/auth.

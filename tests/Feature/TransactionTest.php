@@ -173,7 +173,7 @@ class TransactionTest extends TestCase
         $response1 = $this->postJson('/api/v1/transactions', $data1);
         $response1->assertStatus(201)
             ->assertJsonFragment(['tag' => 'Food & Drinks', 'tag_id' => -1]);
-        
+
         $this->assertDatabaseHas('transactions', [
             'transaction_details' => 'Food dinner',
             'tag' => 'Food & Drinks',
@@ -193,7 +193,7 @@ class TransactionTest extends TestCase
         $response2 = $this->postJson('/api/v1/transactions', $data2);
         $response2->assertStatus(201)
             ->assertJsonFragment(['tag' => 'Shopping', 'tag_id' => -2]);
-        
+
         $this->assertDatabaseHas('transactions', [
             'transaction_details' => 'Clothes shopping',
             'tag' => 'Shopping',
@@ -278,5 +278,107 @@ class TransactionTest extends TestCase
         $filterResponseStr = $this->getJson('/api/v1/transactions?tag_id=Utilities');
         $filterResponseStr->assertStatus(200)
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_can_create_transaction_with_image()
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
+
+        $data = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Grocery with image',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 500.00,
+            'remarks' => 'Weekly grocery',
+            'tag' => 'food,essential',
+            'comment' => 'Bought from local store',
+            'image' => \Illuminate\Http\UploadedFile::fake()->image('receipt.jpg')
+        ];
+
+        Sanctum::actingAs($user, ['*']);
+        $response = $this->postJson('/api/v1/transactions', $data);
+
+        $response->assertStatus(201);
+
+        $transaction = Transaction::where('transaction_details', 'Grocery with image')->first();
+        $this->assertNotNull($transaction);
+        $this->assertNotNull($transaction->getFirstMedia('receipt'));
+        $this->assertNotEmpty($transaction->receipt_url);
+    }
+
+    public function test_can_update_transaction_with_image()
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
+        $transaction = Transaction::factory()->create([
+            'user_id' => $user->id,
+            'account_id' => $account->id
+        ]);
+
+        $data = [
+            'date' => '2023-10-28',
+            'time' => '11:00:00',
+            'transaction_details' => 'Updated Details with image',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 1000.00,
+            'image' => \Illuminate\Http\UploadedFile::fake()->image('new_receipt.jpg')
+        ];
+
+        Sanctum::actingAs($user, ['*']);
+        $response = $this->putJson("/api/v1/transactions/{$transaction->id}", $data);
+
+        $response->assertStatus(200);
+
+        $transaction->refresh();
+        $this->assertNotNull($transaction->getFirstMedia('receipt'));
+        $this->assertNotEmpty($transaction->receipt_url);
+    }
+
+    public function test_cannot_create_transaction_with_duplicate_ref_no()
+    {
+        $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'SBI',
+            'balance' => 1000,
+            'user_id' => $user->id
+        ]);
+
+        Transaction::factory()->create([
+            'user_id' => $user->id,
+            'account_id' => $account->id,
+            'ref_no' => 'REF123456'
+        ]);
+
+        $data = [
+            'date' => '2023-10-27',
+            'time' => '10:00:00',
+            'transaction_details' => 'Duplicate ref no',
+            'account_id' => $account->id,
+            'type' => 'debit',
+            'amount' => 100.00,
+            'ref_no' => 'REF123456'
+        ];
+
+        Sanctum::actingAs($user, ['*']);
+        $response = $this->postJson('/api/v1/transactions', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('ref_no');
     }
 }

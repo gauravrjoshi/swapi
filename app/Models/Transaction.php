@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use App\Traits\BelongsToUnid;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Transaction extends Model
+class Transaction extends Model implements HasMedia
 {
-    use \Illuminate\Database\Eloquent\Factories\HasFactory, BelongsToUnid, LogsActivity;
+    use \Illuminate\Database\Eloquent\Factories\HasFactory, BelongsToUnid, LogsActivity, InteractsWithMedia;
 
 
     protected $fillable = [
@@ -46,6 +48,7 @@ class Transaction extends Model
 
     protected $appends = [
         'resolved_tag',
+        'receipt_url',
     ];
 
     protected static function booted()
@@ -114,6 +117,14 @@ class Transaction extends Model
         return app(\App\Services\TagService::class)->resolveTag($userId, $this->tag_id);
     }
 
+    public function getReceiptUrlAttribute()
+    {
+        if (!$this->hasMedia('receipt')) {
+            return null;
+        }
+        return '/api/v1/transactions/' . $this->id . '/receipt';
+    }
+
     public function mainAccount()
     {
         return $this->belongsTo(Account::class, 'account_id')->withTrashed();
@@ -155,5 +166,11 @@ class Transaction extends Model
         return LogOptions::defaults()
             ->logOnly(['*'])
             ->logOnlyDirty();
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('receipt')
+            ->singleFile();
     }
 }

@@ -39,7 +39,13 @@ Route::prefix('v1')->group(function () {
 
         // Transaction Routes
         Route::post('transactions/import', [\App\Http\Controllers\Api\V1\TransactionController::class, 'import']);
+        Route::get('transactions/{id}/receipt', [\App\Http\Controllers\Api\V1\TransactionController::class, 'receipt']);
         Route::apiResource('transactions', \App\Http\Controllers\Api\V1\TransactionController::class);
+
+        // Draft Transaction Routes
+        Route::post('draft-transactions/{id}/confirm', [\App\Http\Controllers\Api\V1\DraftTransactionController::class, 'confirm']);
+        Route::get('draft-transactions/{id}/receipt', [\App\Http\Controllers\Api\V1\DraftTransactionController::class, 'receipt']);
+        Route::apiResource('draft-transactions', \App\Http\Controllers\Api\V1\DraftTransactionController::class);
 
         // Tag Routes
         Route::apiResource('tags', \App\Http\Controllers\Api\V1\TagController::class);
