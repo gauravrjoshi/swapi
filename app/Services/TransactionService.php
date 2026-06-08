@@ -415,13 +415,8 @@ class TransactionService
     }
 
 
-    public function getTransactions(int $userId, array $filters = [], int $perPage = 10)
+    protected function applyFilters($query, int $userId, array $filters = [])
     {
-        $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
-            ->orderBy('date', 'desc')
-            ->orderBy('time', 'desc')
-            ->orderBy('id', 'desc');
-
         if (!empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $search = $filters['search'];
@@ -468,9 +463,37 @@ class TransactionService
             }
         }
 
+        return $query;
+    }
 
+    public function getTransactions(int $userId, array $filters = [], int $perPage = 10)
+    {
+        $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
+            ->orderBy('date', 'desc')
+            ->orderBy('time', 'desc')
+            ->orderBy('id', 'desc');
+
+        $query = $this->applyFilters($query, $userId, $filters);
 
         return $query->paginate($perPage);
+    }
+
+    public function getTransactionSums(int $userId, array $filters = []): array
+    {
+        $query = Transaction::query();
+        $query = $this->applyFilters($query, $userId, $filters);
+
+        $sums = $query->groupBy('type')
+            ->select('type', DB::raw('SUM(amount) as total'))
+            ->get()
+            ->pluck('total', 'type')
+            ->toArray();
+
+        return [
+            'credit' => (float) ($sums['credit'] ?? 0.0),
+            'debit' => (float) ($sums['debit'] ?? 0.0),
+            'transfer' => (float) ($sums['transfer'] ?? 0.0),
+        ];
     }
     /**
      * Send a push notification for a transaction.

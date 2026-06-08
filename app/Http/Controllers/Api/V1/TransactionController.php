@@ -18,14 +18,24 @@ class TransactionController extends Controller
      */
     public function index(Request $request, TransactionService $transactionService)
     {
-        $transactions = $transactionService->getTransactions($request->user()->id, [
+        $filters = [
             'search' => $request->search,
             'type' => $request->type,
             'user_id' => $request->user_id,
             'from_date' => $request->from_date,
             'to_date' => $request->to_date,
             'tag_id' => $request->tag_id,
-        ]);
+        ];
+
+        $transactions = $transactionService->getTransactions($request->user()->id, $filters);
+
+        $sumsFilters = $filters;
+        if (empty($sumsFilters['from_date']) && empty($sumsFilters['to_date'])) {
+            $today = now()->format('Y-m-d');
+            $sumsFilters['from_date'] = $today;
+            $sumsFilters['to_date'] = $today;
+        }
+        $sums = $transactionService->getTransactionSums($request->user()->id, $sumsFilters);
 
         $filters_value = [
             'users' => User::select('id', 'name')->get(),
@@ -38,7 +48,8 @@ class TransactionController extends Controller
         ];
 
         return response()->json(array_merge($transactions->toArray(), [
-            'filters_value' => $filters_value
+            'filters_value' => $filters_value,
+            'transaction_sums' => $sums,
         ]));
     }
 
