@@ -35,6 +35,21 @@ class NotificationService
      */
     public function sendToUser($user, string $title, string $body, array $data = []): bool
     {
+        // 1. Save notification log to the database
+        try {
+            \App\Models\DatabaseNotification::create([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'user_id' => $user->id,
+                'title' => $title,
+                'body' => $body,
+                'type' => $data['type'] ?? 'general',
+                'data' => $data,
+                'read_at' => null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("Failed to save notification to database: " . $e->getMessage());
+        }
+
         // If in local environment, just log the notification and return success
         if (app()->isLocal()) {
             Log::channel('slack')->info("Local Environment: Notification would be sent to User ID {$user->id}. Title: {$title}, Body: {$body}");

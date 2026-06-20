@@ -67,6 +67,30 @@ Route::prefix('v1')->group(function () {
         // Notification Routes
         Route::post('fcm-token', [\App\Http\Controllers\Api\V1\NotificationController::class, 'updateFcmToken']);
         Route::post('notifications/send', [\App\Http\Controllers\Api\V1\NotificationController::class, 'sendNotification']);
+
+        // Notification Settings Routes
+        Route::get('notification-settings', [\App\Http\Controllers\Api\V1\NotificationSettingsController::class, 'show']);
+        Route::post('notification-settings', [\App\Http\Controllers\Api\V1\NotificationSettingsController::class, 'update']);
+
+        // Notification History Log Routes
+        Route::get('notifications', [\App\Http\Controllers\Api\V1\NotificationsHistoryController::class, 'index']);
+        Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\V1\NotificationsHistoryController::class, 'markAsRead']);
+        Route::post('notifications/read-all', [\App\Http\Controllers\Api\V1\NotificationsHistoryController::class, 'markAllAsRead']);
+
+        // Personal Subscription Routes
+        Route::get('personal-subscriptions', [\App\Http\Controllers\Api\V1\PersonalSubscriptionController::class, 'index']);
+        Route::post('personal-subscriptions', [\App\Http\Controllers\Api\V1\PersonalSubscriptionController::class, 'store']);
+        Route::delete('personal-subscriptions/{id}', [\App\Http\Controllers\Api\V1\PersonalSubscriptionController::class, 'destroy']);
+
+        // Savings Goal Routes
+        Route::get('savings-goals', [\App\Http\Controllers\Api\V1\SavingsGoalController::class, 'index']);
+        Route::post('savings-goals', [\App\Http\Controllers\Api\V1\SavingsGoalController::class, 'store']);
+        Route::delete('savings-goals/{id}', [\App\Http\Controllers\Api\V1\SavingsGoalController::class, 'destroy']);
+
+        // Recurring Bill Routes
+        Route::get('recurring-bills', [\App\Http\Controllers\Api\V1\RecurringBillController::class, 'index']);
+        Route::post('recurring-bills', [\App\Http\Controllers\Api\V1\RecurringBillController::class, 'store']);
+        Route::delete('recurring-bills/{id}', [\App\Http\Controllers\Api\V1\RecurringBillController::class, 'destroy']);
     });
 });
 

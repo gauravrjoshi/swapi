@@ -545,6 +545,7 @@ class TransactionService
 
         if ($action === 'create' || $action === 'update') {
             $this->checkBudgetThresholds($transaction);
+            $this->checkLowBalanceAlert($transaction);
         }
     }
 
@@ -636,4 +637,71 @@ class TransactionService
             ]);
         }
     }
+
+    /**
+     * Check account balance and trigger warning if it drops below threshold.
+     */
+    protected function checkLowBalanceAlert(Transaction $transaction): void
+    {
+        $userId = $transaction->user_id;
+        $user = $transaction->user ?? User::find($userId);
+        if (!$user) {
+            return;
+        }
+
+        // Get notification settings
+        $settings = \App\Models\UserNotificationSetting::firstOrCreate(
+            ['user_id' => $userId],
+            [
+                'timezone' => 'Asia/Kolkata',
+                'reminder_time' => '20:00:00',
+                'enable_low_balance_alerts' => true,
+                'low_balance_threshold' => 1000.00,
+            ]
+        );
+
+        if (!$settings->enable_low_balance_alerts) {
+            return;
+        }
+
+        $accountId = $transaction->account_id;
+        if (!$accountId) {
+            return;
+        }
+
+        $account = Account::find($accountId);
+        if (!$account || $account->account_type === 'liability') {
+            return;
+        }
+
+        $threshold = (float) $settings->low_balance_threshold;
+        $currentBalance = (float) $account->balance;
+        $amount = (float) $transaction->amount;
+
+        // Calculate previous balance to verify crossover
+        $previousBalance = $currentBalance;
+        if ($transaction->type === 'debit') {
+            $previousBalance = $currentBalance + $amount;
+        } elseif ($transaction->type === 'transfer' && $transaction->from_account_id === $accountId) {
+            $previousBalance = $currentBalance + $amount;
+        } else {
+            return; // Not a debit or outbound transfer on this account
+        }
+
+        if ($previousBalance >= $threshold && $currentBalance < $threshold) {
+            $currency = "₹";
+            $formattedThreshold = number_format($threshold, 2);
+            $formattedBalance = number_format($currentBalance, 2);
+            
+            $title = "Low Balance Alert: {$account->name}";
+            $body = "Your {$account->name} balance has dropped below {$currency}{$formattedThreshold}. Current balance: {$currency}{$formattedBalance}.";
+
+            $this->notificationService->sendToUser($user, $title, $body, [
+                'type' => 'low_balance_alerts',
+                'account_id' => (string) $account->id,
+                'balance' => (string) $currentBalance,
+            ]);
+        }
+    }
 }
+
