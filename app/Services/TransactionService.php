@@ -542,5 +542,98 @@ class TransactionService
             'type' => 'transaction',
             'action' => $action,
         ], [$owner->id]);
+
+        if ($action === 'create' || $action === 'update') {
+            $this->checkBudgetThresholds($transaction);
+        }
+    }
+
+    /**
+     * Check budget thresholds and send FCM notifications if crossed.
+     *
+     * @param Transaction $transaction
+     * @return void
+     */
+    protected function checkBudgetThresholds(Transaction $transaction): void
+    {
+        // Only run for debit (expense) transactions that have a category (tag)
+        if ($transaction->type !== 'debit' || empty($transaction->tag)) {
+            return;
+        }
+
+        $userId = $transaction->user_id;
+        $tag = $transaction->tag;
+        $tagId = $transaction->tag_id;
+
+        // Find a budget for this category
+        $budget = \App\Models\Budget::where('user_id', $userId)
+            ->where(function ($query) use ($tag, $tagId) {
+                $query->where('tag', $tag);
+                if ($tagId !== null) {
+                    $query->orWhere('tag_id', $tagId);
+                }
+            })
+            ->first();
+
+        if (!$budget) {
+            return;
+        }
+
+        $limit = (float) $budget->amount;
+        if ($limit <= 0) {
+            return;
+        }
+
+        // Parse transaction's date to check budget for that specific month
+        $txDate = \Carbon\Carbon::parse($transaction->date);
+        $startOfMonth = $txDate->copy()->startOfMonth()->toDateString();
+        $endOfMonth = $txDate->copy()->endOfMonth()->toDateString();
+
+        // Calculate total spending in that month excluding this transaction
+        $previousSpent = Transaction::query()
+            ->where('user_id', $userId)
+            ->where('type', 'debit')
+            ->where('id', '!=', $transaction->id)
+            ->whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->where(function ($query) use ($tag, $tagId) {
+                $query->where('tag', $tag);
+                if ($tagId !== null) {
+                    $query->orWhere('tag_id', $tagId);
+                }
+            })
+            ->sum('amount');
+
+        $previousSpent = (float) $previousSpent;
+        $currentSpent = $previousSpent + (float) $transaction->amount;
+
+        $user = $transaction->user ?? User::find($userId);
+        if (!$user) {
+            return;
+        }
+
+        $currency = "₹";
+        $formattedLimit = number_format($limit, 2);
+        $formattedSpent = number_format($currentSpent, 2);
+
+        // Check 100% threshold crossover
+        if ($previousSpent < $limit && $currentSpent >= $limit) {
+            $title = "Budget Exceeded: {$tag}";
+            $body = "You have exceeded your {$tag} budget of {$currency}{$formattedLimit} (Spent: {$currency}{$formattedSpent}).";
+            $this->notificationService->sendToUser($user, $title, $body, [
+                'type' => 'budget_alert',
+                'budget_id' => (string) $budget->id,
+                'tag' => $tag,
+            ]);
+        }
+        // Check 80% threshold crossover
+        elseif ($previousSpent < ($limit * 0.8) && $currentSpent >= ($limit * 0.8)) {
+            $title = "Budget Warning: {$tag}";
+            $body = "You have spent 80% of your {$tag} budget (Spent: {$currency}{$formattedSpent} of {$currency}{$formattedLimit}).";
+            $this->notificationService->sendToUser($user, $title, $body, [
+                'type' => 'budget_alert',
+                'budget_id' => (string) $budget->id,
+                'tag' => $tag,
+            ]);
+        }
     }
 }

@@ -50,6 +50,11 @@ Route::prefix('v1')->group(function () {
         // Tag Routes
         Route::apiResource('tags', \App\Http\Controllers\Api\V1\TagController::class);
 
+        // Budget Routes
+        Route::get('budgets', [\App\Http\Controllers\Api\V1\BudgetController::class, 'index']);
+        Route::post('budgets', [\App\Http\Controllers\Api\V1\BudgetController::class, 'store']);
+        Route::delete('budgets/{id}', [\App\Http\Controllers\Api\V1\BudgetController::class, 'destroy']);
+
         // Account Routes
         Route::apiResource('accounts', \App\Http\Controllers\Api\V1\AccountController::class);
 
