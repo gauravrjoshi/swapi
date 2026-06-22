@@ -5,11 +5,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Download UNNATI - The ultimate premium family wealth tracking and financial productivity application. Monitor your net worth, manage assets, liabilities, and track tasks all in one secure space.">
+        content="Download UNNATI - The ultimate premium family finance app. Track your net worth, manage assets, monitor liabilities, set budgets, and scan receipts — all in one secure space.">
     <meta name="keywords"
-        content="Unnati app, StatelyWorld Unnati, wealth tracking, net worth manager, family budget, task manager, financial productivity">
+        content="Unnati app, StatelyWorld Unnati, wealth tracking, net worth manager, family budget, expense tracker, receipt scanner, personal finance">
     <meta name="author" content="StatelyWorld">
-    <title>UNNATI | Premium Family Wealth & Financial Productivity App</title>
+    <title>UNNATI | Family Finance & Wealth Tracking App</title>
+
+    <!-- Open Graph / Social Sharing Preview -->
+    <!-- These tags control how the link looks when shared on WhatsApp, Telegram, iMessage, Facebook, LinkedIn etc. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="UNNATI by StatelyWorld">
+    <meta property="og:title" content="UNNATI — Family Finance & Wealth Tracker">
+    <meta property="og:description"
+        content="Track assets, manage budgets, scan receipts, and monitor your net worth together as a family. Now available on Google Play Store.">
+    <meta property="og:url" content="{{ url('/') }}">
+    <meta property="og:image" content="{{ url('/images/logo.png') }}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="UNNATI App Logo">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="UNNATI — Family Finance & Wealth Tracker">
+    <meta name="twitter:description"
+        content="Track assets, manage budgets, scan receipts, and monitor your net worth together as a family. Now on Google Play.">
+    <meta name="twitter:image" content="{{ url('/images/logo.png') }}">
+    <meta name="twitter:image:alt" content="UNNATI App Logo">
 
     <!-- Google Fonts: Outfit for Headings, Inter for Body -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1026,26 +1047,26 @@
         <div class="container hero-grid">
             <div class="hero-content">
                 <div class="hero-badge">
-                    <i class="fa-solid fa-circle-play"></i> Promoting UNNATI v1.0
+                    <i class="fa-brands fa-google-play"></i> Now Live on Google Play Store
                 </div>
                 <h1 class="hero-title" id="main-hero-title">
                     <span class="grad-1">Accelerate Your</span><br>
-                    <span class="grad-2">Family Wealth & Productivity</span>
+                    <span class="grad-2">Family Wealth & Financial Freedom</span>
                 </h1>
                 <p class="hero-subtitle">
                     UNNATI brings your assets, savings, liabilities, and household tasks into a unified, secure, and
                     ultra-premium collaborative platform. Work together with your family to grow your net worth.
                 </p>
                 <div class="hero-cta">
-                    <a href="https://swapi.statelyworld.com/storage/app-prod-release.apk"
-                        class="btn btn-primary btn-download" id="btn-hero-download">
-                        <i class="fa-solid fa-arrow-down-to-line"></i> Download APK for Android
+                    <a href="https://play.google.com/store/apps/details?id=com.sw.unnati"
+                        class="btn btn-primary btn-download" id="btn-hero-download" target="_blank" rel="noopener">
+                        <i class="fa-brands fa-google-play"></i> Get it on Google Play
                     </a>
                     <a href="{{ route('login') }}" class="btn btn-outline" id="btn-hero-explore">
                         Go to Web Dashboard <i class="fa-solid fa-arrow-right"></i>
                     </a>
                 </div>
-                <div class="hero-stats">
+                <!-- <div class="hero-stats">
                     <div class="hero-stat-item">
                         <h3 id="stat-downloads">10k+</h3>
                         <p>Downloads</p>
@@ -1058,7 +1079,7 @@
                         <h3 id="stat-rating">4.9/5</h3>
                         <p>User Rating</p>
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- Smartphone Showcase Mockup -->
@@ -1081,7 +1102,7 @@
             <div class="section-title-wrapper">
                 <span class="section-tag">Powerful Modules</span>
                 <h2 class="section-title" id="features-section-title">Designed for Modern Families</h2>
-                <p class="section-desc">Experience a comprehensive set of financial and productivity modules
+                <p class="section-desc">Experience a comprehensive set of financial modules
                     specifically crafted to push your progress and organization forwards.</p>
             </div>
 
@@ -1241,35 +1262,35 @@
         <div class="container">
             <div class="section-title-wrapper">
                 <span class="section-tag">Getting Started</span>
-                <h2>How to Install the APK on Android</h2>
-                <p class="section-desc">Follow these quick, easy steps to download and safely run the UNNATI app on
-                    your Android device.</p>
+                <h2>How to Download UNNATI from Google Play</h2>
+                <p class="section-desc">Installing UNNATI is quick and easy — just a few taps directly from the
+                    Google Play Store, no sideloading required.</p>
             </div>
 
             <div class="steps-container">
                 <div class="step-card" id="step-one">
                     <div class="step-number">01</div>
-                    <h3>Download the APK</h3>
-                    <p>Click any of the download buttons to fetch the verified, safe production APK file directly to
-                        your smartphone.</p>
+                    <h3>Open Google Play Store</h3>
+                    <p>On your Android device, open the Google Play Store app. Make sure you're signed in with your
+                        Google account.</p>
                 </div>
                 <div class="step-card" id="step-two">
                     <div class="step-number">02</div>
-                    <h3>Enable Safe Source</h3>
-                    <p>When prompted by your browser, tap Settings and toggle "Allow from this source" so your system
-                        can open the installer.</p>
+                    <h3>Search for UNNATI</h3>
+                    <p>Search "UNNATI StatelyWorld" or tap the button below to go directly to the app listing on
+                        Google Play.</p>
                 </div>
                 <div class="step-card" id="step-three">
                     <div class="step-number">03</div>
                     <h3>Tap Install</h3>
-                    <p>Open your downloads, tap on the UNNATI APK file, and click Install. Setup takes less than 30
-                        seconds!</p>
+                    <p>Hit the Install button on the Play Store listing. The app is compact and installs in
+                        seconds on any Android device.</p>
                 </div>
                 <div class="step-card" id="step-four">
                     <div class="step-number">04</div>
-                    <h3>Log In & Track</h3>
-                    <p>Open the app, sign in using your StatelyWorld credentials, and start building financial harmony
-                        together.</p>
+                    <h3>Log In &amp; Track</h3>
+                    <p>Open UNNATI, sign in with your StatelyWorld credentials, and start building financial
+                        harmony with your family.</p>
                 </div>
             </div>
         </div>
@@ -1281,12 +1302,12 @@
             <div class="cta-box" id="cta-box-wrapper">
                 <h2 class="cta-title" id="cta-main-title">Ready to Take Control?</h2>
                 <p class="cta-desc">Download UNNATI now and experience a new, modern, and highly rewarding way of
-                    keeping your family wealth and daily productivity fully organized.</p>
+                    keeping your family finances and net worth fully organized.</p>
 
                 <div class="cta-buttons">
-                    <a href="https://swapi.statelyworld.com/storage/app-prod-release.apk"
-                        class="btn btn-primary btn-download" id="btn-cta-download">
-                        <i class="fa-solid fa-arrow-down-to-line"></i> Download APK (v1.0.0)
+                    <a href="https://play.google.com/store/apps/details?id=com.sw.unnati"
+                        class="btn btn-primary btn-download" id="btn-cta-download" target="_blank" rel="noopener">
+                        <i class="fa-brands fa-google-play"></i> Download on Google Play
                     </a>
                     <a href="{{ route('login') }}" class="btn btn-outline"
                         style="padding: 16px 36px; border-radius: 16px;" id="btn-cta-explore">
@@ -1296,13 +1317,13 @@
 
                 <div class="cta-meta">
                     <div class="cta-meta-item">
-                        <i class="fa-solid fa-shield-halved"></i> 100% Secure & Ad-free
+                        <i class="fa-solid fa-shield-halved"></i> 100% Secure &amp; Ad-free
                     </div>
                     <div class="cta-meta-item">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> Direct APK Release
+                        <i class="fa-brands fa-google-play"></i> Available on Google Play
                     </div>
                     <div class="cta-meta-item">
-                        <i class="fa-solid fa-bolt"></i> Compact Size (~18MB)
+                        <i class="fa-solid fa-bolt"></i> Free to Download
                     </div>
                 </div>
             </div>
@@ -1319,7 +1340,7 @@
                             style="height: 38px; width: auto; border-radius: 8px;">
                         <div class="logo-text"><span>UNNATI</span></div>
                     </a>
-                    <p>Accelerating family wealth tracking and daily productivity in one ultra-secure, gorgeous space.
+                    <p>Accelerating family wealth tracking and financial clarity in one ultra-secure, gorgeous space.
                     </p>
                 </div>
 
@@ -1329,7 +1350,8 @@
                         <li><a href="#features">Features</a></li>
                         <li><a href="#showcase">UI Showcase</a></li>
                         <li><a href="#guide">Installation Guide</a></li>
-                        <li><a href="https://swapi.statelyworld.com/storage/app-prod-release.apk">Download APK</a></li>
+                        <li><a href="https://play.google.com/store/apps/details?id=com.sw.unnati" target="_blank"
+                                rel="noopener">Download on Play Store</a></li>
                     </ul>
                 </div>
 
@@ -1355,7 +1377,7 @@
             </div>
 
             <div class="footer-bottom">
-                <p id="copyright-text">&copy; 2026 StatelyWorld. All Rights Reserved. Crafted for premium productivity.
+                <p id="copyright-text">&copy; 2026 StatelyWorld. All Rights Reserved. Crafted for financial clarity.
                 </p>
                 <div class="social-links">
                     <a href="#" class="social-icon" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
