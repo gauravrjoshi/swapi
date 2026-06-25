@@ -566,8 +566,17 @@ class TransactionService
         $tag = $transaction->tag;
         $tagId = $transaction->tag_id;
 
-        // Find a budget for this category
-        $budget = \App\Models\Budget::where('user_id', $userId)
+        $user = $transaction->user ?? User::find($userId);
+        if (!$user) {
+            return;
+        }
+
+        // Find a budget for this category under the family unid
+        $budget = \App\Models\Budget::whereIn('user_id', function ($query) use ($user) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('unid', $user->unid);
+            })
             ->where(function ($query) use ($tag, $tagId) {
                 $query->where('tag', $tag);
                 if ($tagId !== null) {
@@ -590,9 +599,13 @@ class TransactionService
         $startOfMonth = $txDate->copy()->startOfMonth()->toDateString();
         $endOfMonth = $txDate->copy()->endOfMonth()->toDateString();
 
-        // Calculate total spending in that month excluding this transaction
+        // Calculate total family spending in that month excluding this transaction
         $previousSpent = Transaction::query()
-            ->where('user_id', $userId)
+            ->whereIn('user_id', function ($query) use ($user) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('unid', $user->unid);
+            })
             ->where('type', 'debit')
             ->where('id', '!=', $transaction->id)
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -606,11 +619,6 @@ class TransactionService
 
         $previousSpent = (float) $previousSpent;
         $currentSpent = $previousSpent + (float) $transaction->amount;
-
-        $user = $transaction->user ?? User::find($userId);
-        if (!$user) {
-            return;
-        }
 
         $currency = "₹";
         $formattedLimit = number_format($limit, 2);

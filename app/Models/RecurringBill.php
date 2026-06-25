@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToUnid;
 
 class RecurringBill extends Model
 {
+    use BelongsToUnid;
+
     protected $fillable = [
         'user_id',
         'name',
@@ -21,6 +24,18 @@ class RecurringBill extends Model
         'next_due_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
+
+    protected $appends = [
+        'creator_name',
+    ];
+
+    /**
+     * Get the name of the user who created the bill.
+     */
+    public function getCreatorNameAttribute(): string
+    {
+        return $this->user ? $this->user->name : '';
+    }
 
     public function user()
     {

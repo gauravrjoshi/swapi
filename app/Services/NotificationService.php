@@ -56,10 +56,10 @@ class NotificationService
             return true;
         }
 
-        if (!$this->messaging) {
-            Log::channel('slack')->warning("Firebase Messaging is not configured or initialized. Notification skipped.");
-            return false;
-        }
+        // if (!$this->messaging) {
+        //     Log::channel('slack')->warning("Firebase Messaging is not configured or initialized. Notification skipped.");
+        //     return false;
+        // }
 
         if (!$user->fcm_token) {
             Log::channel('slack')->info("Attempted to send notification to User ID {$user->id} but no FCM token was found.");

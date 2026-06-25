@@ -15,15 +15,13 @@ class BudgetController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $userId = $request->user()->id;
-        $budgets = Budget::where('user_id', $userId)->get();
+        $budgets = Budget::with('user:id,name')->get();
 
         $startOfMonth = now()->startOfMonth()->toDateString();
         $endOfMonth = now()->endOfMonth()->toDateString();
 
         foreach ($budgets as $budget) {
             $spent = Transaction::query()
-                ->where('user_id', $userId)
                 ->where('type', 'debit')
                 ->whereBetween('date', [$startOfMonth, $endOfMonth])
                 ->where(function ($query) use ($budget) {
@@ -53,9 +51,8 @@ class BudgetController extends Controller
             'amount' => 'required|numeric|min:0.01',
         ]);
 
-        // Find existing budget by tag or tag_id
-        $budget = Budget::where('user_id', $userId)
-            ->where(function ($query) use ($validated) {
+        // Find existing budget by tag or tag_id (scoped to family automatically)
+        $budget = Budget::where(function ($query) use ($validated) {
                 $query->where('tag', $validated['tag']);
                 if (!empty($validated['tag_id'])) {
                     $query->orWhere('tag_id', $validated['tag_id']);
@@ -85,7 +82,6 @@ class BudgetController extends Controller
         $endOfMonth = now()->endOfMonth()->toDateString();
 
         $spent = Transaction::query()
-            ->where('user_id', $userId)
             ->where('type', 'debit')
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->where(function ($query) use ($budget) {
@@ -97,6 +93,7 @@ class BudgetController extends Controller
             ->sum('amount');
 
         $budget->spent = (float) $spent;
+        $budget->load('user:id,name');
 
         return response()->json($budget, 201);
     }
@@ -106,8 +103,7 @@ class BudgetController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $userId = $request->user()->id;
-        $budget = Budget::where('user_id', $userId)->findOrFail($id);
+        $budget = Budget::findOrFail($id);
         $budget->delete();
 
         return response()->json(null, 204);

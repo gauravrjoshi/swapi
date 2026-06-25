@@ -14,8 +14,7 @@ class PersonalSubscriptionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $userId = $request->user()->id;
-        $subscriptions = PersonalSubscription::where('user_id', $userId)->get();
+        $subscriptions = PersonalSubscription::with('user:id,name')->get();
         return response()->json($subscriptions);
     }
 
@@ -39,11 +38,13 @@ class PersonalSubscriptionController extends Controller
         unset($validated['id']);
 
         if ($id) {
-            $subscription = PersonalSubscription::where('user_id', $userId)->findOrFail($id);
+            $subscription = PersonalSubscription::findOrFail($id);
             $subscription->update($validated);
         } else {
             $subscription = PersonalSubscription::create(array_merge($validated, ['user_id' => $userId]));
         }
+
+        $subscription->load('user:id,name');
 
         return response()->json($subscription, 201);
     }
@@ -53,8 +54,7 @@ class PersonalSubscriptionController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $userId = $request->user()->id;
-        $subscription = PersonalSubscription::where('user_id', $userId)->findOrFail($id);
+        $subscription = PersonalSubscription::findOrFail($id);
         $subscription->delete();
 
         return response()->json(null, 204);

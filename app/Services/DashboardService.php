@@ -53,12 +53,14 @@ class DashboardService
         $monthlySavings = $this->getSavingsMetrics($userId, $startDate, $endDate);
         $chartData = $this->getMonthlyChartData($userId);
         $expenseChart = $this->getExpenseChartData($userId, $startDate, $endDate);
+        $budgets = $this->getBudgetsSummary($userId);
 
         return array_merge($summary, [
             'accounts' => $accounts,
             'monthlySavings' => $monthlySavings,
             'chartData' => $chartData,
             'expenseChart' => $expenseChart,
+            'budgets' => $budgets,
         ]);
     }
 
@@ -203,6 +205,25 @@ class DashboardService
      */
     protected function getExpenseChartData(?int $userId, ?string $startDate, ?string $endDate): array
     {
+        $debitsPeriod = $this->getDebitTransactions($userId, $startDate, $endDate);
+
+        $targetUserId = $userId ?: auth()->id();
+        /** @var Collection $tags */
+        $tags = $targetUserId ? $this->tagService->getTags($targetUserId) : collect();
+
+        return $this->buildExpenseChartMap($debitsPeriod, $tags);
+    }
+
+    /**
+     * Get debit transactions with optionally filtered date and user.
+     *
+     * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
+     * @return Collection
+     */
+    protected function getDebitTransactions(?int $userId, ?string $startDate, ?string $endDate): Collection
+    {
         $debitsPeriodQuery = Transaction::where('type', 'debit')
             ->where(function ($q) {
                 $q->whereNull('from_account_id')
@@ -219,12 +240,24 @@ class DashboardService
         if ($endDate) {
             $debitsPeriodQuery->where('date', '<=', $endDate);
         }
-        $debitsPeriod = $debitsPeriodQuery->get();
 
-        $targetUserId = $userId ?: auth()->id();
-        $tags = $targetUserId ? $this->tagService->getTags($targetUserId) : collect();
+        return $debitsPeriodQuery->get();
+    }
+
+    /**
+     * Construct expense chart data from debit transactions and tags.
+     *
+     * @param Collection $debitsPeriod
+     * @param Collection $tags
+     * @return array
+     */
+    protected function buildExpenseChartMap(Collection $debitsPeriod, Collection $tags): array
+    {
+        /** @var array<string, string> $tagColorMap */
         $tagColorMap = $tags->pluck('color', 'name')->toArray();
+        /** @var array<string, int|null> $tagIdMap */
         $tagIdMap = $tags->pluck('id', 'name')->toArray();
+        /** @var Collection $groupedDebits */
         $groupedDebits = $debitsPeriod->groupBy('tag');
 
         $expenseChartMap = [];
@@ -264,5 +297,48 @@ class DashboardService
             ->sortBy(fn($item) => [-$item['amount'], $item['label']])
             ->values()
             ->toArray();
+    }
+
+    protected function getBudgetsSummary(?int $userId): array
+    {
+        $user = $userId ? \App\Models\User::find($userId) : auth()->user();
+        if (!$user) {
+            return [];
+        }
+
+        $budgets = \App\Models\Budget::whereIn('user_id', function ($query) use ($user) {
+            $query->select('id')
+                ->from('users')
+                ->where('unid', $user->unid);
+        })->get();
+
+        $tags = $this->tagService->getTags($user->id);
+        $tagColorMap = $tags->pluck('color', 'name')->all();
+
+        $startOfMonth = now()->startOfMonth()->toDateString();
+        $endOfMonth = now()->endOfMonth()->toDateString();
+
+        foreach ($budgets as $b) {
+            $spent = Transaction::query()
+                ->whereIn('user_id', function ($query) use ($user) {
+                    $query->select('id')
+                        ->from('users')
+                        ->where('unid', $user->unid);
+                })
+                ->where('type', 'debit')
+                ->whereBetween('date', [$startOfMonth, $endOfMonth])
+                ->where(function ($query) use ($b) {
+                    $query->where('tag', $b->tag);
+                    if ($b->tag_id !== null) {
+                        $query->orWhere('tag_id', $b->tag_id);
+                    }
+                })
+                ->sum('amount');
+
+            $b->spent = (float) $spent;
+            $b->color = $tagColorMap[$b->tag] ?? '#6366f1';
+        }
+
+        return $budgets->toArray();
     }
 }

@@ -170,7 +170,11 @@ class DispatchScheduledNotifications extends Command
 
 
 
-        $subscriptions = PersonalSubscription::where('user_id', $user->id)
+        $subscriptions = PersonalSubscription::whereIn('user_id', function ($query) use ($user) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('unid', $user->unid);
+            })
             ->where('is_active', true)
             ->whereIn('next_renewal_date', [$tomorrow, $inSevenDays])
             ->get();
@@ -201,7 +205,11 @@ class DispatchScheduledNotifications extends Command
         $tomorrow = $userTime->copy()->addDay()->toDateString();
         $inThreeDays = $userTime->copy()->addDays(3)->toDateString();
 
-        $bills = RecurringBill::where('user_id', $user->id)
+        $bills = RecurringBill::whereIn('user_id', function ($query) use ($user) {
+                $query->select('id')
+                    ->from('users')
+                    ->where('unid', $user->unid);
+            })
             ->where('is_active', true)
             ->whereIn('next_due_date', [$tomorrow, $inThreeDays])
             ->get();

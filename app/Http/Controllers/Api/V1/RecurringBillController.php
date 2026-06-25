@@ -14,8 +14,7 @@ class RecurringBillController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $userId = $request->user()->id;
-        $bills = RecurringBill::where('user_id', $userId)->get();
+        $bills = RecurringBill::with('user:id,name')->get();
         return response()->json($bills);
     }
 
@@ -40,11 +39,13 @@ class RecurringBillController extends Controller
         unset($validated['id']);
 
         if ($id) {
-            $bill = RecurringBill::where('user_id', $userId)->findOrFail($id);
+            $bill = RecurringBill::findOrFail($id);
             $bill->update($validated);
         } else {
             $bill = RecurringBill::create(array_merge($validated, ['user_id' => $userId]));
         }
+
+        $bill->load('user:id,name');
 
         return response()->json($bill, 201);
     }
@@ -54,8 +55,7 @@ class RecurringBillController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $userId = $request->user()->id;
-        $bill = RecurringBill::where('user_id', $userId)->findOrFail($id);
+        $bill = RecurringBill::findOrFail($id);
         $bill->delete();
 
         return response()->json(null, 204);
