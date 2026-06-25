@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToUnid;
 
 class PersonalSubscription extends Model
 {
+    use BelongsToUnid;
+
     protected $table = 'personal_subscriptions';
 
     protected $fillable = [
@@ -22,6 +25,18 @@ class PersonalSubscription extends Model
         'next_renewal_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
+
+    protected $appends = [
+        'creator_name',
+    ];
+
+    /**
+     * Get the name of the user who created the subscription.
+     */
+    public function getCreatorNameAttribute(): string
+    {
+        return $this->user ? $this->user->name : '';
+    }
 
     public function user()
     {

@@ -21,6 +21,18 @@ class Budget extends Model
         'tag_id' => 'integer',
     ];
 
+    protected $appends = [
+        'creator_name',
+    ];
+
+    /**
+     * Get the name of the user who created the budget.
+     */
+    public function getCreatorNameAttribute(): string
+    {
+        return $this->user ? $this->user->name : '';
+    }
+
     /**
      * Relationship with the User.
      */

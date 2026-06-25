@@ -50,7 +50,7 @@ new class extends Component {
 
     public function editBill($id)
     {
-        $bill = RecurringBill::where('user_id', Auth::id())->findOrFail($id);
+        $bill = RecurringBill::findOrFail($id);
         $this->editingBillId = $id;
         $this->editName = $bill->name;
         $this->editAmount = $bill->amount;
@@ -72,7 +72,7 @@ new class extends Component {
             'editNextDueDate' => 'required|date',
         ]);
 
-        $bill = RecurringBill::where('user_id', $userId)->findOrFail($this->editingBillId);
+        $bill = RecurringBill::findOrFail($this->editingBillId);
         $bill->update([
             'name' => $this->editName,
             'amount' => $this->editAmount,
@@ -88,13 +88,13 @@ new class extends Component {
 
     public function deleteBill($id)
     {
-        RecurringBill::where('user_id', Auth::id())->findOrFail($id)->delete();
+        RecurringBill::findOrFail($id)->delete();
         session()->flash('bill-message', 'Recurring bill/credit deleted successfully.');
     }
 
     public function toggleActive($id)
     {
-        $bill = RecurringBill::where('user_id', Auth::id())->findOrFail($id);
+        $bill = RecurringBill::findOrFail($id);
         $bill->update([
             'is_active' => !$bill->is_active
         ]);
@@ -108,7 +108,7 @@ new class extends Component {
     public function with()
     {
         $userId = Auth::id();
-        $bills = RecurringBill::where('user_id', $userId)
+        $bills = RecurringBill::with('user:id,name')
             ->when($this->search, function ($q) {
                 $q->where('name', 'like', '%' . trim($this->search) . '%');
             })
@@ -379,6 +379,9 @@ new class extends Component {
                                         {{ $b->type }}
                                     </span>
                                 </div>
+                                <span class="text-xs text-slate-500 block mt-1">
+                                    Added by: {{ $b->creator_name }}
+                                </span>
                             </div>
                             
                             <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">

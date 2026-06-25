@@ -301,11 +301,7 @@ class DashboardService
 
     protected function getBudgetsSummary(?int $userId): array
     {
-        if (!$userId) {
-            return [];
-        }
-
-        $user = \App\Models\User::find($userId);
+        $user = $userId ? \App\Models\User::find($userId) : auth()->user();
         if (!$user) {
             return [];
         }
@@ -316,7 +312,7 @@ class DashboardService
                 ->where('unid', $user->unid);
         })->get();
 
-        $tags = $this->tagService->getTags($userId);
+        $tags = $this->tagService->getTags($user->id);
         $tagColorMap = $tags->pluck('color', 'name')->all();
 
         $startOfMonth = now()->startOfMonth()->toDateString();

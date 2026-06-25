@@ -279,9 +279,14 @@ new class extends Component {
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between space-y-4 relative group hover:shadow-md hover:border-slate-200 transition-all">
                         <!-- Top details -->
                         <div class="flex justify-between items-start">
-                            <div class="flex items-center gap-2">
-                                <span class="h-3 w-3 rounded-full flex-shrink-0" style="background-color: {{ $tagColor }}"></span>
-                                <h4 class="text-base font-bold text-slate-800">{{ $b->tag }}</h4>
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-2">
+                                    <span class="h-3 w-3 rounded-full flex-shrink-0" style="background-color: {{ $tagColor }}"></span>
+                                    <h4 class="text-base font-bold text-slate-800">{{ $b->tag }}</h4>
+                                </div>
+                                <span class="text-xs text-slate-500 ml-5">
+                                    Added by: {{ $b->creator_name }}
+                                </span>
                             </div>
                             <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button wire:click="editBudget({{ $b->id }})" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all" title="Edit Budget limit">

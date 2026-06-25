@@ -46,7 +46,7 @@ new class extends Component {
 
     public function editSubscription($id)
     {
-        $sub = PersonalSubscription::where('user_id', Auth::id())->findOrFail($id);
+        $sub = PersonalSubscription::findOrFail($id);
         $this->editingSubscriptionId = $id;
         $this->editName = $sub->name;
         $this->editAmount = $sub->amount;
@@ -66,7 +66,7 @@ new class extends Component {
             'editNextRenewalDate' => 'required|date',
         ]);
 
-        $sub = PersonalSubscription::where('user_id', $userId)->findOrFail($this->editingSubscriptionId);
+        $sub = PersonalSubscription::findOrFail($this->editingSubscriptionId);
         $sub->update([
             'name' => $this->editName,
             'amount' => $this->editAmount,
@@ -81,13 +81,13 @@ new class extends Component {
 
     public function deleteSubscription($id)
     {
-        PersonalSubscription::where('user_id', Auth::id())->findOrFail($id)->delete();
+        PersonalSubscription::findOrFail($id)->delete();
         session()->flash('subscription-message', 'Subscription deleted successfully.');
     }
 
     public function toggleActive($id)
     {
-        $sub = PersonalSubscription::where('user_id', Auth::id())->findOrFail($id);
+        $sub = PersonalSubscription::findOrFail($id);
         $sub->update([
             'is_active' => !$sub->is_active
         ]);
@@ -101,7 +101,7 @@ new class extends Component {
     public function with()
     {
         $userId = Auth::id();
-        $subscriptions = PersonalSubscription::where('user_id', $userId)
+        $subscriptions = PersonalSubscription::with('user:id,name')
             ->when($this->search, function ($q) {
                 $q->where('name', 'like', '%' . trim($this->search) . '%');
             })
@@ -337,8 +337,13 @@ new class extends Component {
                         <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="text-base font-bold text-slate-800 tracking-tight">{{ $s->name }}</h4>
-                                <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1.5 {{ $s->is_active ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500' }}">
-                                    {{ $s->billing_cycle }}
+                                <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $s->is_active ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500' }}">
+                                        {{ $s->billing_cycle }}
+                                    </span>
+                                </div>
+                                <span class="text-xs text-slate-500 block mt-1">
+                                    Added by: {{ $s->creator_name }}
                                 </span>
                             </div>
                             
