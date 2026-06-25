@@ -3,16 +3,25 @@
 use Livewire\Volt\Component;
 use App\Models\Transaction;
 use Livewire\WithPagination;
+use Livewire\Attributes\Url;
 
 new class extends Component {
     use WithPagination;
 
+    #[Url]
     public $search = '';
+    #[Url]
     public $typeFilter = '';
+    #[Url]
     public $userFilter = '';
+    #[Url]
     public $accountFilter = '';
+    #[Url]
     public $fromDate = '';
+    #[Url]
     public $toDate = '';
+    #[Url]
+    public $tagFilter = '';
     public $confirmingTransactionDeletionId = null;
 
     public function updatingSearch()
@@ -45,9 +54,14 @@ new class extends Component {
         $this->resetPage();
     }
 
+    public function updatingTagFilter()
+    {
+        $this->resetPage();
+    }
+
     public function resetFilters()
     {
-        $this->reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search']);
+        $this->reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search', 'tagFilter']);
         $this->resetPage();
     }
 
@@ -87,9 +101,11 @@ new class extends Component {
                 'account_id' => $this->accountFilter,
                 'from_date' => $this->fromDate,
                 'to_date' => $this->toDate,
+                'tag_id' => $this->tagFilter,
             ], 20),
             'users' => \App\Models\User::all(),
             'accounts' => \App\Models\Account::orderBy('name')->get(),
+            'tags' => app(App\Services\TagService::class)->getTags(auth()->id()),
         ];
     }
 };
@@ -179,7 +195,15 @@ new class extends Component {
                     @endforeach
                 </select>
 
-                @if($fromDate || $toDate || $typeFilter || $userFilter || $accountFilter || $search)
+                <select wire:model.live="tagFilter"
+                    class="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-50 transition-all outline-none">
+                    <option value="">All Tags</option>
+                    @foreach($tags as $tag)
+                        <option value="{{ $tag->name }}">{{ $tag->name }}</option>
+                    @endforeach
+                </select>
+
+                @if($fromDate || $toDate || $typeFilter || $userFilter || $accountFilter || $search || $tagFilter)
                     <button wire:click="resetFilters"
                         class="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition-all text-xs uppercase tracking-widest">
                         Reset

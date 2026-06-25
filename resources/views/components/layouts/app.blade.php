@@ -127,6 +127,39 @@
                     Tags
                 </a>
 
+                <a href="/budgets"
+                    class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-all duration-200 {{ request()->is('budgets') ? 'bg-gradient-to-r from-[#ed760e] to-[#f4933e] text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 {{ request()->is('budgets') ? 'text-white' : 'text-slate-400' }}" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Budgets
+                </a>
+
+                <a href="/subscriptions"
+                    class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-all duration-200 {{ request()->is('subscriptions') ? 'bg-gradient-to-r from-[#ed760e] to-[#f4933e] text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 {{ request()->is('subscriptions') ? 'text-white' : 'text-slate-400' }}" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Subscriptions
+                </a>
+
+                <a href="/recurring-bills"
+                    class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-all duration-200 {{ request()->is('recurring-bills') ? 'bg-gradient-to-r from-[#ed760e] to-[#f4933e] text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 {{ request()->is('recurring-bills') ? 'text-white' : 'text-slate-400' }}" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    Recurring Bills
+                </a>
+
                 @if(Auth::check() && Auth::user()->is_admin)
                     <a href="/admin/users"
                         class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[15px] font-bold transition-all duration-200 {{ request()->is('admin/users') ? 'bg-gradient-to-r from-[#ed760e] to-[#f4933e] text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
@@ -194,6 +227,8 @@
                     </button>
 
                     @auth
+                        <livewire:notifications-dropdown />
+                        
                         <div class="relative" x-data="{ open: false }" @click.away="open = false"
                             @profile-updated.window="$wire.$refresh()">
                             <button @click="open = !open"

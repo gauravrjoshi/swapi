@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToUnid;
 
 class Budget extends Model
 {
+    use BelongsToUnid;
+
     protected $fillable = [
         'user_id',
         'tag_id',

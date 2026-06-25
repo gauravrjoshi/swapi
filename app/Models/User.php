@@ -51,6 +51,11 @@ class User extends Authenticatable
     {
         return $this->hasMany(Tag::class);
     }
+
+    public function databaseNotifications()
+    {
+        return $this->hasMany(DatabaseNotification::class, 'user_id');
+    }
     // protected $guarded = [];
 
     /**

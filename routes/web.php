@@ -96,6 +96,22 @@ Route::middleware(['auth'])->group(function () {
         return view('tag_management_page');
     });
 
+    Route::get('/budgets', function () {
+        return view('budget_management_page');
+    });
+
+    Route::get('/subscriptions', function () {
+        return view('subscriptions_page');
+    });
+
+    Route::get('/recurring-bills', function () {
+        return view('recurring_bills_page');
+    });
+
+    Route::get('/notifications', function () {
+        return view('notifications_page');
+    });
+
     Route::get('/admin/users', function () {
         if (!auth()->user()->is_admin)
             abort(403);
