@@ -10,7 +10,7 @@ class AppVersionController
 {
     /**
      * GET /api/v1/app-version
-     * Public — no auth required.
+     * Public ï¿½ no auth required.
      * Returns current version settings for the Flutter app to check against.
      */
     public function index(): JsonResponse
