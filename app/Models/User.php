@@ -35,6 +35,13 @@ class User extends Authenticatable
         'is_admin',
         'unid',
         'profile_photo_path',
+        // Device telemetry
+        'app_version',
+        'app_build',
+        'platform',
+        'os_version',
+        'device_model',
+        'device_last_seen',
     ];
 
     public function isAdmin(): bool

@@ -33,6 +33,9 @@ Route::prefix('v1')->group(function () {
 
             // App Version Settings (admin-only update)
             Route::put('app-version', [AppVersionController::class, 'update']);
+
+            // Device Info Analytics (admin-only read)
+            Route::get('device-info', [\App\Http\Controllers\Api\V1\Admin\DeviceInfoController::class, 'index']);
         });
         // Support Ticket Admin Routes
         Route::get('admin/support-tickets', [\App\Http\Controllers\Api\V1\Admin\SupportTicketController::class, 'index']);
