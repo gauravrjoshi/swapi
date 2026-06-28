@@ -2,10 +2,14 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\AppVersionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    // App Version Check (public — no auth required)
+    Route::get('app-version', [AppVersionController::class, 'index']);
+
     // Auth Routes
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
@@ -26,6 +30,9 @@ Route::prefix('v1')->group(function () {
             Route::post('members', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'store']);
             Route::put('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'update']);
             Route::delete('members/{id}', [\App\Http\Controllers\Api\V1\Admin\MemberController::class, 'destroy']);
+
+            // App Version Settings (admin-only update)
+            Route::put('app-version', [AppVersionController::class, 'update']);
         });
         // Support Ticket Admin Routes
         Route::get('admin/support-tickets', [\App\Http\Controllers\Api\V1\Admin\SupportTicketController::class, 'index']);
