@@ -23,46 +23,92 @@ new class extends Component {
     #[Url]
     public $tagFilter = '';
     public $confirmingTransactionDeletionId = null;
+    public $selectedTransactions = [];
+    public $selectAll = false;
+    public $confirmingBulkDeletion = false;
+
+    public function resetSelection()
+    {
+        $this->selectedTransactions = [];
+        $this->selectAll = false;
+    }
 
     public function updatingSearch()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingTypeFilter()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingUserFilter()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingAccountFilter()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingFromDate()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingToDate()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function updatingTagFilter()
     {
         $this->resetPage();
+        $this->resetSelection();
     }
 
     public function resetFilters()
     {
         $this->reset(['fromDate', 'toDate', 'typeFilter', 'userFilter', 'accountFilter', 'search', 'tagFilter']);
+        $this->resetSelection();
         $this->resetPage();
+    }
+
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $service = app(App\Services\TransactionService::class);
+            $txs = $service->getTransactions(auth()->id(), [
+                'search' => $this->search,
+                'type' => $this->typeFilter,
+                'user_id' => $this->userFilter,
+                'account_id' => $this->accountFilter,
+                'from_date' => $this->fromDate,
+                'to_date' => $this->toDate,
+                'tag_id' => $this->tagFilter,
+            ], 20);
+
+            $this->selectedTransactions = collect($txs->items())
+                ->filter(fn($tx) => $tx->canBeManagedBy(auth()->id()))
+                ->pluck('id')
+                ->map(fn($id) => (string)$id)
+                ->toArray();
+        } else {
+            $this->selectedTransactions = [];
+        }
+    }
+
+    public function updatedSelectedTransactions($value)
+    {
+        $this->selectAll = false;
     }
 
     public function confirmTransactionDelete($id)
@@ -79,7 +125,7 @@ new class extends Component {
     {
         $transaction = Transaction::findOrFail($this->confirmingTransactionDeletionId);
 
-        if (!$transaction->canBeManagedBy(Auth::id())) {
+        if (!$transaction->canBeManagedBy(auth()->id())) {
             $this->confirmingTransactionDeletionId = null;
             session()->flash('message', 'You do not have permission to delete this transaction.');
             return;
@@ -88,7 +134,35 @@ new class extends Component {
         $service->deleteTransaction($transaction);
 
         $this->confirmingTransactionDeletionId = null;
+        $this->selectedTransactions = array_diff($this->selectedTransactions, [$transaction->id]);
         session()->flash('message', 'Transaction deleted successfully.');
+    }
+
+    public function confirmBulkDelete()
+    {
+        $this->confirmingBulkDeletion = true;
+    }
+
+    public function cancelBulkDelete()
+    {
+        $this->confirmingBulkDeletion = false;
+    }
+
+    public function deleteSelectedTransactions(App\Services\TransactionService $service)
+    {
+        $count = 0;
+        foreach ($this->selectedTransactions as $id) {
+            $transaction = Transaction::find($id);
+            if ($transaction && $transaction->canBeManagedBy(auth()->id())) {
+                $service->deleteTransaction($transaction);
+                $count++;
+            }
+        }
+
+        $this->selectedTransactions = [];
+        $this->selectAll = false;
+        $this->confirmingBulkDeletion = false;
+        session()->flash('message', "{$count} transactions deleted successfully.");
     }
 
     public function with(App\Services\TransactionService $service)
@@ -217,6 +291,10 @@ new class extends Component {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50/50 border-b border-slate-100">
+                        <th class="px-6 py-4 w-12 text-left">
+                            <input type="checkbox" wire:model.live="selectAll"
+                                class="rounded border-slate-200 text-indigo-600 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 h-4 w-4 transition-all cursor-pointer">
+                        </th>
                         <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
                         <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             Description</th>
@@ -238,6 +316,14 @@ new class extends Component {
                 <tbody class="divide-y divide-slate-50">
                     @forelse($transactions as $tx)
                         <tr class="group hover:bg-slate-50/80 transition-all">
+                            <td class="px-6 py-5 whitespace-nowrap w-12">
+                                @if($tx->canBeManagedBy(auth()->id()))
+                                    <input type="checkbox" wire:model.live="selectedTransactions" value="{{ $tx->id }}"
+                                        class="rounded border-slate-200 text-indigo-600 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 h-4 w-4 transition-all cursor-pointer">
+                                @else
+                                    <div class="h-4 w-4 bg-slate-100 rounded border border-slate-200 cursor-not-allowed" title="Read-only: You do not own this account"></div>
+                                @endif
+                            </td>
                             <td class="px-6 py-5 whitespace-nowrap">
                                 <p class="text-sm font-bold text-slate-900">{{ $tx->date->format('d M, Y') }}</p>
                                 <p class="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
@@ -305,7 +391,7 @@ new class extends Component {
                             <td class="px-6 py-5 text-right whitespace-nowrap">
                                 <div
                                     class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                    @if($tx->canBeManagedBy(Auth::id()))
+                                    @if($tx->canBeManagedBy(auth()->id()))
                                         <button
                                             @click="showNewEntryModal = true; $dispatch('edit-transaction', { id: {{ $tx->id }} })"
                                             class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm"
@@ -339,7 +425,7 @@ new class extends Component {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-20 text-center">
+                            <td colspan="8" class="px-6 py-20 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-300" fill="none"
@@ -447,4 +533,68 @@ new class extends Component {
             </div>
         </div>
     </div>
+
+    <!-- Bulk Actions Floating Bar -->
+    @if(count($selectedTransactions) > 0)
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl flex items-center gap-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border border-slate-800">
+            <div class="flex items-center gap-2">
+                <span class="bg-indigo-600 text-xs font-black px-2.5 py-1 rounded-full text-white">
+                    {{ count($selectedTransactions) }}
+                </span>
+                <span class="text-sm font-bold text-slate-300">selected</span>
+            </div>
+            
+            <div class="h-6 w-px bg-slate-800"></div>
+            
+            <div class="flex items-center gap-3">
+                <button wire:click="confirmBulkDelete"
+                    class="text-xs font-black uppercase tracking-wider bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Selected
+                </button>
+            </div>
+            
+            <div class="h-6 w-px bg-slate-800"></div>
+            
+            <button wire:click="resetSelection"
+                class="text-xs font-bold text-slate-400 hover:text-white transition-all active:scale-95">
+                Clear
+            </button>
+        </div>
+    @endif
+
+    <!-- Bulk Delete Modal -->
+    @if($confirmingBulkDeletion)
+        <div class="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+            style="background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);">
+            <div
+                class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 space-y-8 animate-in fade-in zoom-in duration-200">
+                <div class="h-24 w-24 flex items-center justify-center mx-auto rounded-full bg-rose-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-rose-600" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-3xl font-black text-slate-900">Are you sure?</h3>
+                    <p class="text-slate-500 mt-4 leading-relaxed font-medium">
+                        You are about to delete {{ count($selectedTransactions) }} selected transactions. This action cannot be undone and balances will be adjusted.
+                    </p>
+                </div>
+                <div class="flex gap-4">
+                    <button wire:click="cancelBulkDelete"
+                        class="flex-1 py-4 bg-slate-100 text-slate-700 rounded-2xl font-black hover:bg-slate-200 transition-all active:scale-95">
+                        Cancel
+                    </button>
+                    <button wire:click="deleteSelectedTransactions"
+                        class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black hover:bg-rose-700 transition-all shadow-xl shadow-rose-200 active:scale-95">
+                        Delete All
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
