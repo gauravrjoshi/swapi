@@ -51,7 +51,7 @@ class DashboardService
 
         $summary = $this->getFinancialSummary($userId, $startDate, $endDate, $accounts);
         $monthlySavings = $this->getSavingsMetrics($userId, $startDate, $endDate);
-        $chartData = $this->getMonthlyChartData($userId);
+        $chartData = $this->getMonthlyChartData($userId, $startDate, $endDate);
         $expenseChart = $this->getExpenseChartData($userId, $startDate, $endDate);
         $budgets = $this->getBudgetsSummary($userId);
 
@@ -144,16 +144,29 @@ class DashboardService
     }
 
     /**
-     * Get monthly chart data for the last 6 months.
+     * Get monthly chart data for a selected period or default last 6 months.
      *
      * @param int|null $userId
+     * @param string|null $startDate
+     * @param string|null $endDate
      * @return array
      */
-    protected function getMonthlyChartData(?int $userId): array
+    protected function getMonthlyChartData(?int $userId, ?string $startDate = null, ?string $endDate = null): array
     {
         $chartData = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
+        $referenceEnd = $endDate ? \Carbon\Carbon::parse($endDate)->endOfMonth() : now()->endOfMonth();
+
+        if ($startDate && $endDate) {
+            $start = \Carbon\Carbon::parse($startDate)->startOfMonth();
+            $diffMonths = (int) $start->diffInMonths($referenceEnd);
+            // Show at least 6 months leading up to the selected end date, or the full range if longer (capped at 12)
+            $monthsToShow = max(5, min($diffMonths, 11));
+        } else {
+            $monthsToShow = 5;
+        }
+
+        for ($i = $monthsToShow; $i >= 0; $i--) {
+            $month = $referenceEnd->copy()->subMonthsNoOverflow($i);
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd = $month->copy()->endOfMonth();
 

@@ -181,7 +181,7 @@ new class extends Component {
         <div class="space-y-4">
             <h2 class="text-xl font-bold text-slate-900 px-2">Growth Trends</h2>
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[320px] flex flex-col justify-between">
-                <div class="flex-1 relative min-h-[220px]">
+                <div class="flex-1 relative min-h-[220px]" wire:ignore>
                     <canvas id="growthTrendsChart"></canvas>
                 </div>
             </div>
@@ -199,7 +199,9 @@ new class extends Component {
                                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Debits</span>
                                 <span class="text-xl font-black text-slate-800 mt-0.5" x-text="showBalances ? '₹{{ number_format($totalDebits, 2) }}' : '₹ ••••'"></span>
                             </div>
-                            <canvas id="expenseTagsChart" class="z-10"></canvas>
+                            <div class="w-full h-full flex items-center justify-center" wire:ignore>
+                                <canvas id="expenseTagsChart" class="z-10"></canvas>
+                            </div>
                         </div>
                         <!-- Legend and Details List -->
                         <div class="w-full sm:w-1/2 flex flex-col justify-start space-y-2 overflow-y-auto max-h-[300px] pr-1 py-1">
@@ -287,6 +289,14 @@ new class extends Component {
             </div>
         </div>
 
+        <!-- Hidden Livewire-synced payload for charts -->
+        <div id="dashboard-chart-payload"
+             data-growth='@json($chartData)'
+             data-expense='@json($expenseChart)'
+             data-start-date="{{ $startDate ?? '' }}"
+             data-end-date="{{ $endDate ?? '' }}"
+             class="hidden"></div>
+
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script>
             let savingsChartInstance = null;
@@ -300,14 +310,27 @@ new class extends Component {
                 initChart();
             });
 
+            document.addEventListener('livewire:initialized', () => {
+                initChart();
+                Livewire.hook('morphed', () => {
+                    initChart();
+                });
+            });
+
             function initChart() {
+                const payloadEl = document.getElementById('dashboard-chart-payload');
+                const data = payloadEl ? JSON.parse(payloadEl.dataset.growth || '[]') : [];
+                const expenseData = payloadEl ? JSON.parse(payloadEl.dataset.expense || '[]') : [];
+                const currentStartDate = payloadEl ? (payloadEl.dataset.startDate || '') : '';
+                const currentEndDate = payloadEl ? (payloadEl.dataset.endDate || '') : '';
+
                 if (savingsChartInstance) {
                     savingsChartInstance.destroy();
+                    savingsChartInstance = null;
                 }
 
                 const ctx = document.getElementById('growthTrendsChart');
                 if (ctx) {
-                    const data = @json($chartData);
 
                     savingsChartInstance = new Chart(ctx, {
                         type: 'line',
@@ -437,11 +460,11 @@ new class extends Component {
 
                 if (expenseChartInstance) {
                     expenseChartInstance.destroy();
+                    expenseChartInstance = null;
                 }
 
                 const ctxExpense = document.getElementById('expenseTagsChart');
-                if (ctxExpense) {
-                    const expenseData = @json($expenseChart);
+                if (ctxExpense && expenseData.length > 0) {
                     
                     const percentagePlugin = {
                         id: 'percentageLabels',
@@ -525,9 +548,7 @@ new class extends Component {
                                 if (elements && elements.length > 0) {
                                     const index = elements[0].index;
                                     const label = expenseData[index].label;
-                                    const fromDate = '{{ $startDate ?? "" }}';
-                                    const toDate = '{{ $endDate ?? "" }}';
-                                    const url = `/transactions?tagFilter=${encodeURIComponent(label)}&fromDate=${fromDate}&toDate=${toDate}`;
+                                    const url = `/transactions?tagFilter=${encodeURIComponent(label)}&fromDate=${currentStartDate}&toDate=${currentEndDate}`;
                                     window.location.href = url;
                                 }
                             },
