@@ -268,18 +268,12 @@ new class extends Component {
         }
     }
 
-    public function with()
+    public function with(\App\Services\TagService $tagService)
     {
-        $tagQuery = Tag::orderBy('name');
-
-        if ($this->tagSearch) {
-            $tagQuery->where('name', 'like', '%' . trim($this->tagSearch) . '%');
-        }
-
         return [
             // 'accounts' => Account::where('user_id', Auth::id())->orderBy('name')->get(),
             'accounts' => Account::orderBy('name')->get(),
-            'tags' => $tagQuery->get(),
+            'tags' => $tagService->getTags(Auth::id(), $this->tagSearch),
         ];
     }
 };
