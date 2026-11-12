@@ -31,6 +31,7 @@ new class extends Component {
                 'type' => $transaction->type,
                 'amount' => $transaction->amount,
                 'date' => $transaction->date->format('Y-m-d'),
+                'time' => $transaction->time ? \Carbon\Carbon::parse($transaction->time)->format('H:i') : '',
                 'description' => $transaction->description ?? $transaction->transaction_details,
                 'tag' => $transaction->tag,
                 'account_id' => '',
@@ -72,6 +73,7 @@ new class extends Component {
                 'type' => $transaction->type,
                 'amount' => $transaction->amount,
                 'date' => $transaction->date->format('Y-m-d'),
+                'time' => $transaction->time ? \Carbon\Carbon::parse($transaction->time)->format('H:i') : '',
                 'description' => $transaction->description ?? $transaction->transaction_details,
                 'tag' => $transaction->tag,
                 'account_id' => '',
@@ -110,7 +112,8 @@ new class extends Component {
             'to_account_id' => '',
             'description' => '',
             'tag' => '',
-            'date' => now()->format('Y-m-d'),
+            'date' => '',
+            'time' => '',
         ];
     }
 
@@ -134,6 +137,7 @@ new class extends Component {
             'entries.*.type' => 'required|in:credit,debit,transfer',
             'entries.*.amount' => 'required|numeric|min:0.01',
             'entries.*.date' => 'required|date',
+            'entries.*.time' => 'nullable',
             'entries.*.description' => 'nullable|string|max:255',
             'entries.*.tag' => 'nullable|string|max:50',
             'entries.*.account_id' => 'nullable|exists:accounts,id',
@@ -227,7 +231,7 @@ new class extends Component {
 };
 ?>
 
-<div class="p-6 w-full mx-auto">
+<div class="{{ $isModal ? 'p-0' : 'p-6' }} w-full mx-auto">
     <style>
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
@@ -264,18 +268,30 @@ new class extends Component {
                         {{ $transactionId ? 'Refining your financial records' : 'Capturing your latest financial activity' }}
                     </p>
                 </div>
-                <div
-                    class="h-12 w-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                <div class="flex items-center gap-3">
+                    <div
+                        class="h-12 w-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    @if($isModal)
+                        <button type="button" @click="showNewEntryModal = false"
+                            class="h-12 w-12 bg-white/20 hover:bg-white/30 text-white rounded-2xl flex items-center justify-center border border-white/30 backdrop-blur-md transition-all cursor-pointer"
+                            title="Close">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    @endif
                 </div>
             </div>
         </header>
 
-        <form wire:submit.prevent="save" class="p-10 space-y-8">
+        <form wire:submit.prevent="save" class="p-8 md:p-10 space-y-8">
             @if (session()->has('message'))
                 <div
                     class="bg-emerald-50 text-emerald-700 p-4 rounded-2xl font-bold border border-emerald-100 flex items-center gap-3 animate-bounce">
@@ -291,75 +307,109 @@ new class extends Component {
             <div class="space-y-6">
                 @foreach($entries as $index => $entry)
                     <div x-data="{ currentType: @entangle('entries.' . $index . '.type').live }"
-                        class="p-6 bg-slate-50/50 rounded-3xl border border-slate-200 relative shadow-sm transition-all hover:shadow-md">
+                        class="p-6 md:p-8 bg-slate-50/60 rounded-3xl border border-slate-200/80 relative shadow-sm transition-all hover:shadow-md space-y-6">
 
-                        @if(count($entries) > 1 && !$transactionId)
-                            <button type="button" wire:click="removeEntry({{ $index }})"
-                                class="absolute top-6 right-6 h-8 w-8 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors flex items-center justify-center z-10"
-                                title="Remove Entry">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        @endif
-
-                        <!-- Premium Type Selector with Logo Colors -->
-                        <div
-                            class="flex p-1.5 bg-white rounded-[1.25rem] w-full md:w-fit mb-6 shadow-sm border border-slate-100">
-                            <button type="button" @click="currentType = 'debit'"
-                                class="px-8 py-2.5 rounded-[1rem] text-sm font-black transition-all flex items-center gap-2"
-                                :class="currentType === 'debit' ? 'bg-slate-100 text-[#ed760e] shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-                                <span class="h-2 w-2 rounded-full"
-                                    :class="currentType === 'debit' ? 'bg-[#ed760e]' : 'bg-slate-300'"></span>
-                                Expense
-                            </button>
-                            <button type="button" @click="currentType = 'credit'"
-                                class="px-8 py-2.5 rounded-[1rem] text-sm font-black transition-all flex items-center gap-2"
-                                :class="currentType === 'credit' ? 'bg-slate-100 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-                                <span class="h-2 w-2 rounded-full"
-                                    :class="currentType === 'credit' ? 'bg-emerald-500' : 'bg-slate-300'"></span>
-                                Income
-                            </button>
-                            <button type="button" @click="currentType = 'transfer'"
-                                class="px-8 py-2.5 rounded-[1rem] text-sm font-black transition-all flex items-center gap-2"
-                                :class="currentType === 'transfer' ? 'bg-slate-100 text-[#56b6e9] shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-                                <span class="h-2 w-2 rounded-full"
-                                    :class="currentType === 'transfer' ? 'bg-[#56b6e9]' : 'bg-slate-300'"></span>
-                                Transfer
-                            </button>
-                        </div>
-
-                        <div class="grid grid-cols-12 gap-8 items-end mb-6">
-                            <!-- Amount -->
-                            <div class="col-span-12 md:col-span-3 space-y-2.5">
-                                <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Amount <span
-                                        class="text-rose-500">*</span></label>
-                                <div class="group relative">
-                                    <span
-                                        class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg transition-colors"
-                                        :class="{
-                                                        'text-rose-400': currentType === 'debit',
-                                                        'text-emerald-400': currentType === 'credit',
-                                                        'text-indigo-400': currentType === 'transfer'
-                                                    }">₹</span>
-                                    <input type="number" step="0.01" wire:model="entries.{{ $index }}.amount" required
-                                        class="w-full pl-10 pr-4 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 transition-all font-black text-lg shadow-sm"
-                                        :class="{
-                                                        'text-rose-600 focus:ring-rose-50 focus:border-rose-500': currentType === 'debit',
-                                                        'text-emerald-600 focus:ring-emerald-50 focus:border-emerald-500': currentType === 'credit',
-                                                        'text-indigo-600 focus:ring-indigo-50 focus:border-indigo-500': currentType === 'transfer'
-                                                    }" placeholder="0.00">
-                                </div>
-                                @error("entries.$index.amount") <span
-                                class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror
+                        <!-- Top Bar: Type Selector & Remove Button -->
+                        <div class="flex items-center justify-between gap-4 border-b border-slate-200/60 pb-5">
+                            <div
+                                class="flex p-1.5 bg-white rounded-2xl w-full md:w-fit shadow-sm border border-slate-200/80">
+                                <button type="button" @click="currentType = 'debit'"
+                                    class="flex-1 md:flex-initial justify-center px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2.5 cursor-pointer"
+                                    :class="currentType === 'debit' ? 'bg-orange-50 text-[#ed760e] ring-1 ring-[#ed760e]/20 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'">
+                                    <span class="h-2.5 w-2.5 rounded-full transition-colors"
+                                        :class="currentType === 'debit' ? 'bg-[#ed760e]' : 'bg-slate-300'"></span>
+                                    Expense
+                                </button>
+                                <button type="button" @click="currentType = 'credit'"
+                                    class="flex-1 md:flex-initial justify-center px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2.5 cursor-pointer"
+                                    :class="currentType === 'credit' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'">
+                                    <span class="h-2.5 w-2.5 rounded-full transition-colors"
+                                        :class="currentType === 'credit' ? 'bg-emerald-500' : 'bg-slate-300'"></span>
+                                    Income
+                                </button>
+                                <button type="button" @click="currentType = 'transfer'"
+                                    class="flex-1 md:flex-initial justify-center px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2.5 cursor-pointer"
+                                    :class="currentType === 'transfer' ? 'bg-sky-50 text-[#56b6e9] ring-1 ring-[#56b6e9]/20 shadow-xs' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'">
+                                    <span class="h-2.5 w-2.5 rounded-full transition-colors"
+                                        :class="currentType === 'transfer' ? 'bg-[#56b6e9]' : 'bg-slate-300'"></span>
+                                    Transfer
+                                </button>
                             </div>
 
-                            <!-- Tag -->
-                            <div class="col-span-12 md:col-span-3 space-y-2.5">
-                                <label
-                                    class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Category</label>
+                            @if(count($entries) > 1 && !$transactionId)
+                                <button type="button" wire:click="removeEntry({{ $index }})"
+                                    class="h-10 w-10 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                                    title="Remove Entry">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+
+                        <!-- Row 1: Date, Time, Amount -->
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                            <!-- Date -->
+                            <div class="md:col-span-4 space-y-2">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Date <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="date" wire:model="entries.{{ $index }}.date" required
+                                        class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-bold text-sm shadow-xs outline-none">
+                                </div>
+                                @error("entries.$index.date") <span
+                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Time -->
+                            <div class="md:col-span-4 space-y-2">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Time <span class="text-slate-300 font-semibold normal-case tracking-normal">(Optional)</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="time" wire:model="entries.{{ $index }}.time"
+                                        class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-bold text-sm shadow-xs outline-none">
+                                </div>
+                                @error("entries.$index.time") <span
+                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Amount -->
+                            <div class="md:col-span-4 space-y-2">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Amount <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="group relative">
+                                    <span
+                                        class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-base transition-colors"
+                                        :class="{
+                                            'text-rose-500': currentType === 'debit',
+                                            'text-emerald-500': currentType === 'credit',
+                                            'text-[#56b6e9]': currentType === 'transfer'
+                                        }">₹</span>
+                                    <input type="number" step="0.01" wire:model="entries.{{ $index }}.amount" required
+                                        class="w-full h-[52px] pl-9 pr-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 transition-all font-black text-base shadow-xs outline-none"
+                                        :class="{
+                                            'text-rose-600 focus:ring-rose-50 focus:border-rose-500': currentType === 'debit',
+                                            'text-emerald-600 focus:ring-emerald-50 focus:border-emerald-500': currentType === 'credit',
+                                            'text-indigo-600 focus:ring-indigo-50 focus:border-indigo-500': currentType === 'transfer'
+                                        }" placeholder="0.00">
+                                </div>
+                                @error("entries.$index.amount") <span
+                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Category & Account(s) -->
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                            <!-- Tag / Category -->
+                            <div class="space-y-2" :class="currentType === 'transfer' ? 'md:col-span-4' : 'md:col-span-6'">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Category
+                                </label>
                                 <div class="relative" x-data="{ 
                                                     open: false,
                                                     focusSearch() {
@@ -371,20 +421,20 @@ new class extends Component {
                                                     }
                                                  }" x-effect="if(open) focusSearch()" @click.away="open = false">
                                     <button type="button" @click="open = !open"
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer flex justify-between items-center text-base shadow-sm">
-                                        <div class="flex items-center gap-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400"
+                                        class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 transition-all cursor-pointer flex justify-between items-center text-sm shadow-xs">
+                                        <div class="flex items-center gap-2.5 truncate">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0"
                                                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M7 7h.01M7 11h.01M7 15h.01M13 7h.01M13 11h.01M13 15h.01M17 7h.01M17 11h.01M17 15h.01" />
                                             </svg>
                                             <span
-                                                class="{{ $entries[$index]['tag'] ? 'text-slate-900 font-black' : 'text-slate-400 font-bold' }}">
+                                                class="truncate {{ $entries[$index]['tag'] ? 'text-slate-900 font-bold' : 'text-slate-400 font-semibold' }}">
                                                 {{ $entries[$index]['tag'] ?: 'Select category' }}
                                             </span>
                                         </div>
                                         <svg xmlns="http://www.w3.org/2000/svg"
-                                            class="h-5 w-5 text-slate-400 transition-transform"
+                                            class="h-4 w-4 text-slate-400 transition-transform shrink-0 ml-2"
                                             :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24"
                                             stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -393,14 +443,14 @@ new class extends Component {
                                     </button>
 
                                     <div x-show="open" x-transition:enter="transition ease-out duration-200"
-                                        x-transition:enter-start="transform opacity-0 -translate-y-4"
+                                        x-transition:enter-start="transform opacity-0 -translate-y-2"
                                         x-transition:enter-end="transform opacity-100 translate-y-0"
-                                        class="absolute z-50 mt-3 w-full left-0 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
-                                        <div class="p-4 border-b border-slate-50 bg-slate-50/50">
+                                        class="absolute z-50 mt-2 w-full left-0 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+                                        <div class="p-3 border-b border-slate-100 bg-slate-50/50">
                                             <div
-                                                class="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-2xl focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
+                                                class="flex items-center gap-2.5 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
-                                                    class="h-5 w-5 text-slate-400 flex-shrink-0" fill="none"
+                                                    class="h-4 w-4 text-slate-400 shrink-0" fill="none"
                                                     viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -409,14 +459,14 @@ new class extends Component {
                                                     wire:key="tag-search-input-{{ $index }}" x-ref="searchInput"
                                                     @click.stop="" @keydown.enter.prevent=""
                                                     placeholder="Search categories..."
-                                                    class="w-full border-none focus:ring-0 p-0 text-sm text-slate-900 placeholder:text-slate-400 bg-transparent font-black">
+                                                    class="w-full border-none focus:ring-0 p-0 text-sm text-slate-900 placeholder:text-slate-400 bg-transparent font-bold outline-none">
                                             </div>
                                         </div>
                                         <div
-                                            class="max-h-60 overflow-y-auto p-3 space-y-1.5 custom-scrollbar scroll-smooth">
+                                            class="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar scroll-smooth">
                                             <button type="button" wire:click="selectTag('', {{ $index }})"
                                                 @click="open = false"
-                                                class="w-full text-left px-4 py-3 rounded-xl text-xs font-black text-slate-400 hover:bg-slate-50 hover:text-slate-600 cursor-pointer transition-all flex items-center gap-2">
+                                                class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-600 cursor-pointer transition-all flex items-center gap-2">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                                     viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -428,17 +478,17 @@ new class extends Component {
                                                 <button type="button" wire:key="tag-item-{{ $index }}-{{ $t->id }}"
                                                     wire:click.stop="selectTag('{{ addslashes($t->name) }}', {{ $index }})"
                                                     @click="open = false"
-                                                    class="w-full text-left px-4 py-3.5 rounded-2xl text-sm font-black flex items-center justify-between transition-all cursor-pointer {{ $entries[$index]['tag'] === $t->name ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-700 hover:bg-slate-50' }}">
-                                                    <div class="flex items-center gap-3">
+                                                    class="w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-between transition-all cursor-pointer {{ $entries[$index]['tag'] === $t->name ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-700 hover:bg-slate-50' }}">
+                                                    <div class="flex items-center gap-2.5">
                                                         <div
-                                                            style="height: 12px; width: 12px; border-radius: 9999px; background-color: {{ $t->color }}; box-shadow: 0 0 10px {{ $t->color }}60;">
+                                                            style="height: 10px; width: 10px; border-radius: 9999px; background-color: {{ $t->color }}; box-shadow: 0 0 8px {{ $t->color }}60;">
                                                         </div>
                                                         {{ $t->name }}
                                                     </div>
                                                 </button>
                                             @empty
                                                 <div
-                                                    class="px-4 py-10 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 mt-2">
+                                                    class="px-4 py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 mt-1">
                                                     <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">No
                                                         matching
                                                         categories</p>
@@ -448,68 +498,80 @@ new class extends Component {
                                     </div>
                                 </div>
                                 @error("entries.$index.tag") <span
-                                class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror
-                            </div>
-
-                            <!-- Date -->
-                            <div class="col-span-12 md:col-span-2 space-y-2.5">
-                                <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Date <span
-                                        class="text-rose-500">*</span></label>
-                                <div class="relative">
-                                    <input type="date" wire:model="entries.{{ $index }}.date" required
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all text-slate-900 font-black text-sm shadow-sm">
-                                </div>
-                                @error("entries.$index.date") <span
-                                class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span> @enderror
+                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span> @enderror
                             </div>
 
                             <template x-if="currentType === 'transfer'">
                                 <!-- From Account -->
-                                <div class="col-span-12 md:col-span-2 space-y-2.5">
-                                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Source
-                                        <span class="text-rose-500">*</span></label>
-                                    <select wire:model="entries.{{ $index }}.from_account_id"
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-sm appearance-none">
-                                        <option value="">Choose source</option>
-                                        @foreach($accounts as $account)
-                                            <option value="{{ $account->id }}">{{ $account->name }}
-                                                (₹{{ number_format($account->balance, 2) }})</option>
-                                        @endforeach
-                                    </select>
+                                <div class="md:col-span-4 space-y-2">
+                                    <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                        Source Account <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select wire:model="entries.{{ $index }}.from_account_id"
+                                            class="w-full h-[52px] pl-4 pr-10 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs appearance-none outline-none">
+                                            <option value="">Choose source</option>
+                                            @foreach($accounts as $account)
+                                                <option value="{{ $account->id }}">{{ $account->name }}
+                                                    (₹{{ number_format($account->balance, 2) }})</option>
+                                            @endforeach
+                                        </select>
+                                        <div
+                                            class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
+                                                fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                     @error("entries.$index.from_account_id") <span
-                                        class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span>
+                                        class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
                                     @enderror
                                 </div>
                             </template>
 
                             <template x-if="currentType === 'transfer'">
                                 <!-- To Account -->
-                                <div class="col-span-12 md:col-span-2 space-y-2.5">
-                                    <label
-                                        class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Destination
-                                        <span class="text-rose-500">*</span></label>
-                                    <select wire:model="entries.{{ $index }}.to_account_id"
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-sm appearance-none">
-                                        <option value="">Choose destination</option>
-                                        @foreach($accounts as $account)
-                                            <option value="{{ $account->id }}">{{ $account->name }}
-                                                (₹{{ number_format($account->balance, 2) }})</option>
-                                        @endforeach
-                                    </select>
+                                <div class="md:col-span-4 space-y-2">
+                                    <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                        Destination Account <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select wire:model="entries.{{ $index }}.to_account_id"
+                                            class="w-full h-[52px] pl-4 pr-10 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs appearance-none outline-none">
+                                            <option value="">Choose destination</option>
+                                            @foreach($accounts as $account)
+                                                <option value="{{ $account->id }}">{{ $account->name }}
+                                                    (₹{{ number_format($account->balance, 2) }})</option>
+                                            @endforeach
+                                        </select>
+                                        <div
+                                            class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
+                                                fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                     @error("entries.$index.to_account_id") <span
-                                        class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span>
+                                        class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
                                     @enderror
                                 </div>
                             </template>
 
                             <template x-if="currentType !== 'transfer'">
                                 <!-- Single Account -->
-                                <div class="col-span-12 md:col-span-4 space-y-2.5">
-                                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Account
-                                        <span class="text-rose-500">*</span></label>
+                                <div class="md:col-span-6 space-y-2">
+                                    <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                        Account <span class="text-rose-500">*</span>
+                                    </label>
                                     <div class="relative">
                                         <select wire:model="entries.{{ $index }}.account_id"
-                                            class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-sm appearance-none">
+                                            class="w-full h-[52px] pl-4 pr-10 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs appearance-none outline-none">
                                             <option value="">Select an account</option>
                                             @foreach($accounts as $account)
                                                 <option value="{{ $account->id }}">{{ $account->name }}
@@ -518,7 +580,7 @@ new class extends Component {
                                         </select>
                                         <div
                                             class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
                                                 fill="currentColor">
                                                 <path fill-rule="evenodd"
                                                     d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
@@ -527,37 +589,35 @@ new class extends Component {
                                         </div>
                                     </div>
                                     @error("entries.$index.account_id") <span
-                                        class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span>
+                                        class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
                                     @enderror
                                 </div>
                             </template>
                         </div>
 
-                        <div class="grid grid-cols-12 gap-8 items-end">
-                            <!-- Description -->
-                            <div class="col-span-12 md:col-span-8 space-y-2.5">
-                                <label class="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Description
-                                    /
-                                    Memo</label>
-                                <div class="group relative">
-                                    <input type="text" wire:model="entries.{{ $index }}.description"
-                                        class="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-black text-slate-900 text-sm shadow-sm"
-                                        placeholder="Add a note to this transaction...">
-                                </div>
-                                @error("entries.$index.description") <span
-                                    class="text-rose-500 text-xs font-bold px-1">{{ $message }}</span>
-                                @enderror
+                        <!-- Row 3: Description -->
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                Description / Memo
+                            </label>
+                            <div class="group relative">
+                                <input type="text" wire:model="entries.{{ $index }}.description"
+                                    class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs outline-none"
+                                    placeholder="Add a note to this transaction...">
                             </div>
+                            @error("entries.$index.description") <span
+                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
+                            @enderror
                         </div>
                     </div>
                 @endforeach
             </div>
 
             @if(!$transactionId)
-                <div class="flex justify-center mt-4">
+                <div class="flex justify-center">
                     <button type="button" wire:click="addEntry"
-                        class="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold hover:bg-indigo-100 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        class="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold hover:bg-indigo-100 transition-colors cursor-pointer text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd"
                                 d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
                                 clip-rule="evenodd" />
@@ -567,24 +627,23 @@ new class extends Component {
                 </div>
             @endif
 
-            <div class="pt-8 flex justify-end items-center gap-6 border-t border-slate-100">
+            <div class="pt-6 flex justify-end items-center gap-4 border-t border-slate-100">
                 @if(!$isModal)
                     <a href="/dashboard"
-                        class="px-10 py-4 rounded-2xl font-black text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all text-center">
+                        class="px-8 py-3.5 rounded-2xl font-black text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all text-center text-sm">
                         Cancel
                     </a>
                 @else
-                    <button type="button" @click="$dispatch('close-modal')"
-                        class="px-10 py-4 rounded-2xl font-black text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all text-center">
+                    <button type="button" @click="showNewEntryModal = false; $dispatch('close-modal')"
+                        class="px-8 py-3.5 rounded-2xl font-black text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all text-center text-sm cursor-pointer">
                         Cancel
                     </button>
                 @endif
                 <button type="submit"
-                    class="px-16 py-4 rounded-2xl font-black text-white bg-[#ed760e] hover:bg-[#d8690d] transition-all shadow-2xl shadow-orange-200 transform active:scale-95 text-lg">
+                    class="px-10 py-3.5 rounded-2xl font-black text-white bg-[#ed760e] hover:bg-[#d8690d] transition-all shadow-xl shadow-orange-200/80 transform active:scale-95 text-base cursor-pointer">
                     {{ $transactionId ? 'Update Record' : 'Save ' . (count($entries) > 1 ? 'Records' : 'Record') }}
                 </button>
             </div>
         </form>
     </div>
-</div>
 </div>

@@ -514,18 +514,7 @@ new class extends Component {
                 x-transition:leave="ease-in duration-200"
                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                class="inline-block align-bottom bg-transparent rounded-3xl text-left overflow-hidden transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full relative">
-
-                <!-- Close Button -->
-                <div class="absolute top-4 right-4 z-50">
-                    <button @click="showNewEntryModal = false"
-                        class="bg-slate-800 hover:bg-slate-700 text-white rounded-full p-2 backdrop-blur-md transition-all shadow-lg border border-slate-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
+                class="inline-block align-bottom bg-transparent rounded-[2.5rem] text-left overflow-hidden transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full relative">
 
                 <div class="bg-transparent p-0">
                     <livewire:transaction-form-component :isModal="true" />
