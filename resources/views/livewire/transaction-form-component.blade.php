@@ -1,6 +1,7 @@
 <?php
 
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 use App\Models\Account;
 use App\Models\Tag;
 use App\Models\Transaction;
@@ -10,7 +11,13 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 
 new class extends Component {
+    use WithFileUploads;
+
     public $entries = [];
+    public $receipts = [];
+    public $existingReceiptUrl = null;
+    public $existingReceiptName = null;
+    public $removeExistingReceipt = false;
     public $tagSearch = '';
     public $transactionId = null;
     public $isModal = false;
@@ -26,6 +33,10 @@ new class extends Component {
             }
 
             $this->transactionId = $transaction->id;
+            $media = $transaction->getFirstMedia('receipt');
+            $this->existingReceiptUrl = $media ? route('transactions.receipt', $transaction->id) : null;
+            $this->existingReceiptName = $media ? $media->file_name : null;
+            $this->removeExistingReceipt = false;
 
             $entry = [
                 'type' => $transaction->type,
@@ -68,6 +79,11 @@ new class extends Component {
             }
 
             $this->transactionId = $transaction->id;
+            $this->receipts = [];
+            $media = $transaction->getFirstMedia('receipt');
+            $this->existingReceiptUrl = $media ? route('transactions.receipt', $transaction->id) : null;
+            $this->existingReceiptName = $media ? $media->file_name : null;
+            $this->removeExistingReceipt = false;
 
             $entry = [
                 'type' => $transaction->type,
@@ -98,8 +114,22 @@ new class extends Component {
     {
         $this->transactionId = null;
         $this->entries = [];
+        $this->receipts = [];
+        $this->existingReceiptUrl = null;
+        $this->existingReceiptName = null;
+        $this->removeExistingReceipt = false;
         $this->addEntry();
         $this->resetErrorBag();
+    }
+
+    public function clearReceipt($index)
+    {
+        unset($this->receipts[$index]);
+    }
+
+    public function markExistingReceiptForRemoval()
+    {
+        $this->removeExistingReceipt = true;
     }
 
     public function addEntry()
@@ -122,6 +152,10 @@ new class extends Component {
         if (count($this->entries) > 1) {
             unset($this->entries[$index]);
             $this->entries = array_values($this->entries); // Re-index array
+            if (isset($this->receipts[$index])) {
+                unset($this->receipts[$index]);
+            }
+            $this->receipts = array_values($this->receipts);
         }
     }
 
@@ -143,6 +177,7 @@ new class extends Component {
             'entries.*.account_id' => 'nullable|exists:accounts,id',
             'entries.*.from_account_id' => 'nullable|exists:accounts,id',
             'entries.*.to_account_id' => 'nullable|exists:accounts,id|different:entries.*.from_account_id',
+            'receipts.*' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ];
 
         $this->validate($rules);
@@ -194,11 +229,26 @@ new class extends Component {
 
         if ($this->transactionId) {
             $transaction = Transaction::findOrFail($this->transactionId);
-            $service->updateTransaction($transaction, $entriesToSave[0]);
+            $updatedTransaction = $service->updateTransaction($transaction, $entriesToSave[0]);
+
+            if (!empty($this->receipts[0])) {
+                $updatedTransaction->clearMediaCollection('receipt');
+                $updatedTransaction->addMedia($this->receipts[0]->getRealPath())
+                    ->usingFileName($this->receipts[0]->getClientOriginalName())
+                    ->toMediaCollection('receipt');
+            } elseif ($this->removeExistingReceipt) {
+                $updatedTransaction->clearMediaCollection('receipt');
+            }
+
             session()->flash('message', 'Transaction updated successfully.');
         } else {
-            foreach ($entriesToSave as $entry) {
-                $service->createTransaction($entry);
+            foreach ($entriesToSave as $index => $entry) {
+                $createdTransaction = $service->createTransaction($entry);
+                if (!empty($this->receipts[$index])) {
+                    $createdTransaction->addMedia($this->receipts[$index]->getRealPath())
+                        ->usingFileName($this->receipts[$index]->getClientOriginalName())
+                        ->toMediaCollection('receipt');
+                }
             }
             session()->flash('message', count($entriesToSave) > 1 ? count($entriesToSave) . ' transactions recorded successfully.' : 'Transaction recorded successfully.');
         }
@@ -208,6 +258,10 @@ new class extends Component {
 
             // Reset to a clean state after save
             $this->entries = [];
+            $this->receipts = [];
+            $this->existingReceiptUrl = null;
+            $this->existingReceiptName = null;
+            $this->removeExistingReceipt = false;
             $this->addEntry();
         } else {
             return redirect()->to('/dashboard');
@@ -595,19 +649,119 @@ new class extends Component {
                             </template>
                         </div>
 
-                        <!-- Row 3: Description -->
-                        <div class="space-y-2">
-                            <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                Description / Memo
-                            </label>
-                            <div class="group relative">
-                                <input type="text" wire:model="entries.{{ $index }}.description"
-                                    class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs outline-none"
-                                    placeholder="Add a note to this transaction...">
+                        <!-- Row 3: Description & Receipt Attachment -->
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                            <!-- Description -->
+                            <div class="md:col-span-7 space-y-2">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Description / Memo
+                                </label>
+                                <div class="group relative">
+                                    <input type="text" wire:model="entries.{{ $index }}.description"
+                                        class="w-full h-[52px] px-4 bg-white border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold text-slate-900 text-sm shadow-xs outline-none"
+                                        placeholder="Add a note to this transaction...">
+                                </div>
+                                @error("entries.$index.description") <span
+                                    class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
+                                @enderror
                             </div>
-                            @error("entries.$index.description") <span
-                                class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
-                            @enderror
+
+                            <!-- Receipt / Invoice Attachment -->
+                            <div class="md:col-span-5 space-y-2">
+                                <label class="block text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                    Receipt / Invoice <span class="text-slate-300 font-semibold normal-case tracking-normal">(Optional)</span>
+                                </label>
+                                <div class="relative">
+                                    @if(!empty($receipts[$index]))
+                                        <!-- Newly Selected File Pill -->
+                                        <div class="w-full h-[52px] px-4 bg-orange-50/70 border border-[#ed760e]/30 rounded-2xl flex items-center justify-between gap-2 shadow-xs">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="h-8 w-8 rounded-xl bg-[#ed760e] text-white flex items-center justify-center shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                    </svg>
+                                                </div>
+                                                <span class="text-xs font-bold text-slate-800 truncate">
+                                                    {{ $receipts[$index]->getClientOriginalName() }}
+                                                </span>
+                                            </div>
+                                            <button type="button" wire:click="clearReceipt({{ $index }})"
+                                                class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                                title="Remove selected file">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    @elseif($transactionId && $existingReceiptUrl && !$removeExistingReceipt)
+                                        <!-- Existing Saved Attachment Pill -->
+                                        <div class="w-full h-[52px] px-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2 shadow-xs">
+                                            <a href="{{ $existingReceiptUrl }}" target="_blank"
+                                                class="flex items-center gap-2.5 min-w-0 group/link">
+                                                <div class="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex flex-col min-w-0">
+                                                    <span class="text-xs font-bold text-emerald-900 group-hover/link:underline truncate">
+                                                        {{ $existingReceiptName ?: 'Attached Receipt' }}
+                                                    </span>
+                                                    <span class="text-[10px] font-bold text-emerald-600">Click to view</span>
+                                                </div>
+                                            </a>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <label for="receipt-upload-{{ $index }}"
+                                                    class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-white text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg cursor-pointer transition-colors">
+                                                    Replace
+                                                </label>
+                                                <button type="button" wire:click="markExistingReceiptForRemoval"
+                                                    class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="Remove receipt">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <!-- Upload Trigger Box -->
+                                        <label for="receipt-upload-{{ $index }}"
+                                            class="w-full h-[52px] px-4 bg-white hover:bg-slate-50/80 border border-dashed border-slate-300 hover:border-[#ed760e] rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all shadow-xs group">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="h-8 w-8 rounded-xl bg-slate-100 group-hover:bg-orange-50 text-slate-500 group-hover:text-[#ed760e] flex items-center justify-center transition-colors shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                                    </svg>
+                                                </div>
+                                                <span class="text-xs font-bold text-slate-500 group-hover:text-slate-800 truncate transition-colors">
+                                                    Attach receipt or invoice...
+                                                </span>
+                                            </div>
+                                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-lg shrink-0">
+                                                JPG, PNG, PDF
+                                            </span>
+                                        </label>
+                                    @endif
+
+                                    <input id="receipt-upload-{{ $index }}" type="file"
+                                        wire:model="receipts.{{ $index }}"
+                                        accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                        class="hidden">
+
+                                    <div wire:loading wire:target="receipts.{{ $index }}"
+                                        class="absolute inset-0 bg-white/90 backdrop-blur-xs rounded-2xl flex items-center justify-center gap-2 text-xs font-black text-[#ed760e]">
+                                        <svg class="animate-spin h-4 w-4 text-[#ed760e]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        Uploading...
+                                    </div>
+                                </div>
+                                @error("receipts.$index") <span
+                                    class="text-rose-500 text-xs font-bold px-1 block">{{ $message }}</span>
+                                @enderror
+                            </div>
                         </div>
                     </div>
                 @endforeach

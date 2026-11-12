@@ -331,9 +331,23 @@ new class extends Component {
                                 </p>
                             </td>
                             <td class="px-6 py-5">
-                                <p class="text-sm font-bold text-slate-800">
-                                    {{ $tx->description ?? ($tx->transaction_details ?? 'Unspecified') }}
-                                </p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-sm font-bold text-slate-800">
+                                        {{ $tx->description ?? ($tx->transaction_details ?? 'Unspecified') }}
+                                    </p>
+                                    @if($tx->hasMedia('receipt'))
+                                        <a href="{{ route('transactions.receipt', $tx->id) }}" target="_blank"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-orange-50 text-[#ed760e] hover:bg-[#ed760e] hover:text-white border border-orange-200/60 transition-all text-[10px] font-black uppercase tracking-wider shrink-0 shadow-2xs"
+                                            title="View attached receipt / invoice">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"
+                                                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                            </svg>
+                                            Receipt
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-6 py-5">
                                 @if($tx->tag)

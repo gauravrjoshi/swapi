@@ -468,7 +468,7 @@ class TransactionService
 
     public function getTransactions(int $userId, array $filters = [], int $perPage = 10)
     {
-        $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user'])
+        $query = Transaction::with(['mainAccount', 'fromAccount', 'toAccount', 'user', 'media'])
             ->orderBy('date', 'desc')
             ->orderBy('time', 'desc')
             ->orderBy('id', 'desc');

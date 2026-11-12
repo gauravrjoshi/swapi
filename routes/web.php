@@ -76,6 +76,22 @@ Route::middleware(['auth'])->group(function () {
         return view('transaction_page', ['transaction' => $transaction]);
     });
 
+    Route::get('/transactions/{transaction}/receipt', function (App\Models\Transaction $transaction) {
+        if (!auth()->user()->is_admin && !$transaction->canBeManagedBy(auth()->id()) && $transaction->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $media = $transaction->getFirstMedia('receipt');
+        if (!$media || !file_exists($media->getPath())) {
+            abort(404);
+        }
+
+        return response()->file($media->getPath(), [
+            'Content-Type' => $media->mime_type,
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    })->name('transactions.receipt');
+
     Route::get('/accounts', function () {
         return view('account_management_page');
     });
