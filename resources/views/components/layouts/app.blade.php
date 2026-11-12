@@ -48,11 +48,28 @@
         <aside
             class="fixed inset-y-0 left-0 z-50 w-[280px] bg-white border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0"
             :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}">
-            <div class="h-20 flex items-center justify-between px-8 border-b border-slate-100/80 shrink-0">
+            <div class="h-20 flex items-center justify-between px-6 border-b border-slate-100/80 shrink-0">
                 <a href="/dashboard"
-                    class="flex-shrink-0 flex items-center group transition-all transform hover:scale-105 active:scale-95">
-                    <img src="{{ asset('logo.png') }}" alt="{{ config('app.name') }}" class="h-10 w-auto drop-shadow-sm"
-                        style="object-fit: contain;">
+                    class="flex items-center gap-3.5 group transition-all duration-300">
+                    <!-- Brand Icon Container -->
+                    <div class="relative h-12 w-12 rounded-2xl bg-white border border-slate-200/80 shadow-sm group-hover:shadow-md group-hover:border-[#ed760e]/30 flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:scale-105 shrink-0">
+                        <img src="{{ asset('logo.png') }}" alt="{{ config('app.name') }}"
+                            class="w-full h-full object-contain select-none"
+                            style="transform: scale(1.65) translateY(14%); clip-path: inset(0 0 32% 0);">
+                    </div>
+
+                    <!-- Brand Typography -->
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xl font-black tracking-tight bg-gradient-to-r from-[#0284c7] via-[#56b6e9] to-[#ed760e] bg-clip-text text-transparent">
+                                UNNATI
+                            </span>
+                            <span class="h-1.5 w-1.5 rounded-full bg-[#ed760e] mb-3 shadow-[0_0_8px_#ed760e]"></span>
+                        </div>
+                        <span class="text-[10px] font-extrabold tracking-[0.2em] text-slate-400 uppercase -mt-1">
+                            Wealth &bull; Growth
+                        </span>
+                    </div>
                 </a>
                 <!-- Mobile Close Button -->
                 <button @click="sidebarOpen = false"
@@ -201,9 +218,16 @@
                         </svg>
                     </button>
                     <div class="lg:hidden flex items-center">
-                        <a href="/dashboard">
-                            <img src="{{ asset('logo.png') }}" alt="{{ config('app.name') }}"
-                                class="h-8 w-auto drop-shadow-sm">
+                        <a href="/dashboard" class="flex items-center gap-2.5">
+                            <div class="h-10 w-10 rounded-xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+                                <img src="{{ asset('logo.png') }}" alt="{{ config('app.name') }}"
+                                    class="w-full h-full object-contain select-none"
+                                    style="transform: scale(1.65) translateY(14%); clip-path: inset(0 0 32% 0);">
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-base font-black tracking-tight bg-gradient-to-r from-[#0284c7] via-[#56b6e9] to-[#ed760e] bg-clip-text text-transparent leading-none">UNNATI</span>
+                                <span class="text-[9px] font-extrabold tracking-[0.18em] text-slate-400 uppercase mt-0.5">Wealth &bull; Growth</span>
+                            </div>
                         </a>
                     </div>
                 </div>
